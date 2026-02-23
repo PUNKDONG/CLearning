@@ -21,3 +21,7 @@ Day10 练习1：malloc/free 基础
 - double free：对同一指针 free 两次
 - use-after-free：free 后继续访问
 */
+#include<stdio.h>
+int main(void){
+    
+}
