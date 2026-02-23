@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>学习打卡系统 - 笔记详情</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+  <main class="container">
+    <header class="top">
+      <h1>笔记详情</h1>
+      <p>日期：{{ note.note_date }}</p>
+      <p>真实今天：{{ real_today }} | 当前参考今天：{{ today }}{% if preview_mode %}（预览）{% endif %}</p>
+    </header>
+
+    <section class="toolbar panel">
+      <div class="top-actions">
+        {% if preview_mode %}
+          <a class="nav-btn" href="{{ url_for('notes_list', sim_today=sim_today) }}">返回全部笔记</a>
+          <a class="nav-btn" href="{{ url_for('index', date=note.note_date, sim_today=sim_today) }}">回到当天</a>
+        {% else %}
+          <a class="nav-btn" href="{{ url_for('notes_list') }}">返回全部笔记</a>
+          <a class="nav-btn" href="{{ url_for('index', date=note.note_date) }}">回到当天</a>
+        {% endif %}
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>{{ note.title }}</h2>
+      <pre class="note-content">{{ note.content }}</pre>
+      <p class="hint">创建: {{ note.created_at }} | 更新: {{ note.updated_at }}</p>
+    </section>
+  </main>
+</body>
+</html>

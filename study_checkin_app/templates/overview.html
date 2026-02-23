@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>学习打卡系统 - 全局视图</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+  <main class="container">
+    <header class="top">
+      <h1>全局完成情况</h1>
+      <p>查看总进度、各日期完成比和请假记录</p>
+      <p>真实今天：{{ real_today }} | 当前参考今天：{{ today }}{% if preview_mode %}（预览）{% endif %}</p>
+    </header>
+
+    <section class="toolbar panel">
+      <div class="top-actions">
+        {% if preview_mode %}
+          <a class="nav-btn" href="{{ url_for('index', date=today, sim_today=sim_today) }}">返回日视图</a>
+          <a class="nav-btn" href="{{ url_for('overview') }}">恢复真实今天</a>
+          <a class="nav-btn" href="{{ url_for('notes_list', sim_today=sim_today) }}">查看全部笔记</a>
+        {% else %}
+          <a class="nav-btn" href="{{ url_for('index', date=today) }}">返回日视图</a>
+          <a class="nav-btn" href="{{ url_for('notes_list') }}">查看全部笔记</a>
+        {% endif %}
+      </div>
+    </section>
+
+    <section class="stats-grid">
+      <article class="card">
+        <h2>总进度</h2>
+        <div class="big">{{ progress }}%</div>
+        <div class="progress-bar">
+          <div class="progress-fill" style="width: {{ progress }}%"></div>
+        </div>
+      </article>
+      <article class="card">
+        <h2>任务统计</h2>
+        <p>总任务：{{ total }}</p>
+        <p>已完成：{{ completed }}</p>
+        <p>未完成：{{ pending }}</p>
+      </article>
+      <article class="card">
+        <h2>请假记录</h2>
+        <p>最近记录数：{{ leave_logs|length }}</p>
+      </article>
+    </section>
+
+    <section class="panel">
+      <h2>按日期完成情况</h2>
+      <p class="hint">说明：完成/总数 = 当天实际完成数 / 当天计划任务数。</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>完成日期</th>
+              <th>完成/总数</th>
+              <th>完成率</th>
+              <th>当天完成任务明细</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in date_details %}
+              <tr>
+                <td>{{ row.date_key }}</td>
+                <td>{{ row.completed_count }}/{{ row.total_count }}</td>
+                <td>{{ "%.1f"|format(row.rate) }}%</td>
+                <td>
+                  {% if row.completed_tasks %}
+                    <ul class="leave-logs">
+                      {% for t in row.completed_tasks %}
+                        <li>
+                          <strong>Day{{ t.day_num }}</strong>
+                          {{ t.title }}
+                          <span class="ts">({{ t.completed_at }})</span>
+                        </li>
+                      {% endfor %}
+                    </ul>
+                  {% else %}
+                    {% if row.planned_tasks %}
+                      <ul class="leave-logs">
+                        {% for t in row.planned_tasks %}
+                          <li>
+                            <strong>Day{{ t.day_num }}</strong>
+                            {{ t.title }}（未完成）
+                          </li>
+                        {% endfor %}
+                      </ul>
+                    {% else %}
+                      <span class="hint">当天无计划任务</span>
+                    {% endif %}
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>最近请假记录</h2>
+      {% if leave_logs %}
+        <ul class="leave-logs">
+          {% for log in leave_logs %}
+            <li>
+              <strong>{{ log.leave_date }}</strong>
+              顺延 {{ log.affected_count }} 个任务
+              {% if log.reason %} | 原因：{{ log.reason }}{% endif %}
+              <span class="ts">({{ log.created_at }})</span>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p>暂无请假记录。</p>
+      {% endif %}
+    </section>
+  </main>
+</body>
+</html>

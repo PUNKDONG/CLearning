@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>学习打卡系统 - 日视图</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+  <main class="container">
+    <header class="top">
+      <h1>学习打卡（日视图）</h1>
+      <p>只看当天任务 | 可左右切换日期 | 支持请假与顺延</p>
+      <p>真实今天：{{ real_today }} | 当前参考今天：{{ effective_today }}{% if preview_mode %}（预览）{% endif %}</p>
+    </header>
+
+    <section class="toolbar panel">
+      <div class="date-nav">
+        <a class="nav-btn" href="{{ prev_url }}">← 前一天</a>
+        <div class="date-label">
+          <strong>{{ display_date }}</strong>
+          {% if is_today %}<span class="tag">今天</span>{% endif %}
+          {% if task_date != display_date %}<span class="tag">任务来自 {{ task_date }}</span>{% endif %}
+        </div>
+        <a class="nav-btn" href="{{ next_url }}">后一天 →</a>
+      </div>
+      <div class="top-actions">
+        <a class="nav-btn" href="{{ overview_url }}">查看全局完成情况</a>
+        {% if preview_mode %}
+          <a class="nav-btn" href="{{ url_for('notes_list', sim_today=sim_today) }}">查看所有笔记</a>
+        {% else %}
+          <a class="nav-btn" href="{{ url_for('notes_list') }}">查看所有笔记</a>
+        {% endif %}
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>临时修改“今天”（仅预览，不保存）</h2>
+      <form class="actions-panel" method="get" action="{{ url_for('index') }}">
+        <div class="action-row">
+          <input type="date" name="sim_today" value="{{ sim_today }}" />
+          <button type="submit">应用预览日期</button>
+          <a class="nav-btn" href="{{ clear_sim_url }}">恢复真实今天</a>
+        </div>
+      </form>
+      <p class="hint">用于检查“如果今天是某天，任务如何显示”。预览模式下不允许修改数据。</p>
+    </section>
+
+    {% if preview_mode %}
+      <section class="panel">
+        <p>当前是预览模式，打卡/请假/顺延/自动日结开关均已锁定为只读。</p>
+      </section>
+    {% endif %}
+
+    {% if auto_focus and not is_today and not preview_mode %}
+      <section class="panel">
+        <p>今日任务已做完，当前日期为 {{ display_date }}，任务来自 {{ task_date }}。</p>
+      </section>
+    {% endif %}
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <section class="messages">
+          {% for category, message in messages %}
+            <div class="msg {{ category }}">{{ message }}</div>
+          {% endfor %}
+        </section>
+      {% endif %}
+    {% endwith %}
+
+    <section class="stats-grid">
+      <article class="card">
+        <h2>当天完成度</h2>
+        <div class="big">{{ daily_completed }}/{{ daily_total }}</div>
+        <div class="hint">完成率 {{ daily_progress }}%</div>
+        {% if extra_completed_count > 0 %}
+          <div class="hint">含超前完成 {{ extra_completed_count }} 项</div>
+        {% endif %}
+        <div class="progress-bar">
+          <div class="progress-fill" style="width: {{ daily_progress_bar }}%"></div>
+        </div>
+      </article>
+      <article class="card">
+        <h2>当天任务状态</h2>
+        <p>待完成：{{ daily_pending }}</p>
+        <p>历史逾期未完成：{{ overdue_count }}</p>
+      </article>
+      <article class="card">
+        <h2>LeetCode题量</h2>
+        <p>当日总目标：{{ daily_leetcode }} 题</p>
+        <p>未完成剩余：{{ daily_leetcode_pending }} 题</p>
+      </article>
+    </section>
+
+    <section class="panel actions-panel">
+      <h2>当日动作</h2>
+      <div class="action-row">
+        <form method="post" action="{{ url_for('toggle_auto_rollover') }}">
+          <input type="hidden" name="display_date" value="{{ display_date }}" />
+          <input type="hidden" name="sim_today" value="{{ sim_today }}" />
+          {% if auto_rollover_enabled %}
+            <span class="badge done">自动日结：已开启</span>
+            <button type="submit" class="warn" {% if preview_mode %}disabled{% endif %}>关闭自动日结</button>
+          {% else %}
+            <span class="badge pending">自动日结：已关闭</span>
+            <button type="submit" class="ok" {% if preview_mode %}disabled{% endif %}>开启自动日结</button>
+          {% endif %}
+        </form>
+      </div>
+      <div class="action-row">
+        <form method="post" action="{{ url_for('leave') }}">
+          <input type="hidden" name="display_date" value="{{ display_date }}" />
+          <input type="hidden" name="sim_today" value="{{ sim_today }}" />
+          <input type="text" name="reason" placeholder="请假原因（可选）" />
+          <button type="submit" {% if preview_mode %}disabled{% endif %}>请假（从今天起未完成全部顺延1天）</button>
+        </form>
+      </div>
+      <div class="action-row">
+        <form method="post" action="{{ url_for('rollover_day') }}">
+          <input type="hidden" name="display_date" value="{{ display_date }}" />
+          <input type="hidden" name="sim_today" value="{{ sim_today }}" />
+          <button type="submit" class="warn" {% if preview_mode %}disabled{% endif %}>仅将今天未完成项顺延到明天</button>
+        </form>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>当天任务列表</h2>
+      {% if tasks %}
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Day</th>
+                <th>阶段</th>
+                <th>任务</th>
+                <th>LeetCode</th>
+                <th>状态</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for t in tasks %}
+                <tr class="{{ 'done' if t.status == 'completed' else '' }}">
+                  <td>Day{{ t.day_num }}</td>
+                  <td>{{ t.stage }}</td>
+                  <td>{{ t.title }}</td>
+                  <td>{{ leetcode_target(t.day_num) }}题</td>
+                  <td>
+                    {% if t.status == 'completed' %}
+                      <span class="badge done">已完成</span>
+                      {% if t.completed_at %}
+                        <div class="hint">完成于 {{ t.completed_at }}</div>
+                      {% endif %}
+                    {% else %}
+                      <span class="badge pending">待完成</span>
+                    {% endif %}
+                  </td>
+                  <td class="ops">
+                    {% if t.status == 'pending' %}
+                      <form method="post" action="{{ url_for('checkin', task_id=t.id) }}">
+                        <input type="hidden" name="display_date" value="{{ display_date }}" />
+                        <input type="hidden" name="sim_today" value="{{ sim_today }}" />
+                        <button type="submit" class="ok" {% if preview_mode %}disabled{% endif %}>完成</button>
+                      </form>
+                    {% else %}
+                      <form method="post" action="{{ url_for('undo', task_id=t.id) }}">
+                        <input type="hidden" name="display_date" value="{{ display_date }}" />
+                        <input type="hidden" name="sim_today" value="{{ sim_today }}" />
+                        <button type="submit" class="warn" {% if preview_mode %}disabled{% endif %}>撤销</button>
+                      </form>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p>这一天没有任务。</p>
+      {% endif %}
+    </section>
+
+    <section class="panel">
+      <h2>当天笔记（{{ display_date }}）</h2>
+      <form method="post" action="{{ url_for('create_note') }}" class="note-form">
+        <input type="hidden" name="display_date" value="{{ display_date }}" />
+        <input type="hidden" name="sim_today" value="{{ sim_today }}" />
+        <input type="text" name="title" placeholder="标题" />
+        <textarea name="content" rows="4" placeholder="内容（纯文本）"></textarea>
+        <button type="submit" class="ok" {% if preview_mode %}disabled{% endif %}>保存笔记</button>
+      </form>
+
+      {% if notes %}
+        <div class="notes-list">
+          {% for n in notes %}
+            <article class="note-item">
+              {% if edit_note_id == n.id %}
+                <form method="post" action="{{ url_for('update_note', note_id=n.id) }}" class="note-form">
+                  <input type="hidden" name="display_date" value="{{ display_date }}" />
+                  <input type="hidden" name="sim_today" value="{{ sim_today }}" />
+                  <input type="text" name="title" value="{{ n.title }}" />
+                  <textarea name="content" rows="5">{{ n.content }}</textarea>
+                  <div class="note-actions">
+                    <button type="submit" class="ok" {% if preview_mode %}disabled{% endif %}>保存修改</button>
+                    {% if preview_mode %}
+                      <a class="nav-btn" href="{{ url_for('index', date=display_date, sim_today=sim_today) }}">取消</a>
+                    {% else %}
+                      <a class="nav-btn" href="{{ url_for('index', date=display_date) }}">取消</a>
+                    {% endif %}
+                  </div>
+                </form>
+              {% else %}
+                <h3>{{ n.title }}</h3>
+                <pre class="note-content">{{ n.content }}</pre>
+                <p class="hint">创建: {{ n.created_at }} | 更新: {{ n.updated_at }}</p>
+                <div class="note-actions">
+                  {% if preview_mode %}
+                    <a class="nav-btn" href="{{ url_for('index', date=display_date, edit_note=n.id, sim_today=sim_today) }}">编辑</a>
+                    <a class="nav-btn" href="{{ url_for('note_detail', note_id=n.id, sim_today=sim_today) }}">查看详情</a>
+                  {% else %}
+                    <a class="nav-btn" href="{{ url_for('index', date=display_date, edit_note=n.id) }}">编辑</a>
+                    <a class="nav-btn" href="{{ url_for('note_detail', note_id=n.id) }}">查看详情</a>
+                  {% endif %}
+                  <form method="post" action="{{ url_for('delete_note', note_id=n.id) }}">
+                    <input type="hidden" name="display_date" value="{{ display_date }}" />
+                    <input type="hidden" name="sim_today" value="{{ sim_today }}" />
+                    <button type="submit" class="warn" {% if preview_mode %}disabled{% endif %}>删除</button>
+                  </form>
+                </div>
+              {% endif %}
+            </article>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p>当天暂无笔记。</p>
+      {% endif %}
+    </section>
+  </main>
+</body>
+</html>

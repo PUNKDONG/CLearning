@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>学习打卡系统 - 全部笔记</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+  <main class="container">
+    <header class="top">
+      <h1>全部笔记</h1>
+      <p>按日期排序，点击标题查看详情</p>
+      <p>真实今天：{{ real_today }} | 当前参考今天：{{ today }}{% if preview_mode %}（预览）{% endif %}</p>
+    </header>
+
+    <section class="toolbar panel">
+      <div class="top-actions">
+        {% if preview_mode %}
+          <a class="nav-btn" href="{{ url_for('index', date=today, sim_today=sim_today) }}">返回日视图</a>
+        {% else %}
+          <a class="nav-btn" href="{{ url_for('index', date=today) }}">返回日视图</a>
+        {% endif %}
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>笔记目录</h2>
+      {% if notes %}
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>日期</th>
+                <th>标题</th>
+                <th>更新时间</th>
+                <th>查看</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for n in notes %}
+                <tr>
+                  <td>{{ n.note_date }}</td>
+                  <td>{{ n.title }}</td>
+                  <td>{{ n.updated_at }}</td>
+                  <td>
+                    {% if preview_mode %}
+                      <a class="nav-btn" href="{{ url_for('note_detail', note_id=n.id, sim_today=sim_today) }}">查看</a>
+                    {% else %}
+                      <a class="nav-btn" href="{{ url_for('note_detail', note_id=n.id) }}">查看</a>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p>暂无笔记。</p>
+      {% endif %}
+    </section>
+  </main>
+</body>
+</html>
