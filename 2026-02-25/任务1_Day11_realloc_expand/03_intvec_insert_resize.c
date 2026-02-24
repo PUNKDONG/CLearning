@@ -14,6 +14,9 @@ Day11 练习3：insert/erase + 自动扩容与缩容（综合）
    - 所有函数失败返回 -1，成功返回 0
    - 扩/缩容必须使用 realloc 安全写法
 
+函数是干嘛的：
+- `intvec_insert`：在指定位置插入元素，必要时扩容。\n+- `intvec_erase`：删除指定位置元素，必要时触发缩容。\n+- `intvec_shrink_if_needed`：当数组很空时，缩小容量节省内存。
+
 3. 在 main 中测试：
    - 初始 cap=2，元素 {1,2}
    - index=0 插入 99

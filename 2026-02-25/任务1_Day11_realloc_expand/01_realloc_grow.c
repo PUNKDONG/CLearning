@@ -10,6 +10,9 @@ Day11 练习1：realloc 安全扩容
    - 使用 realloc 的“安全写法”。
    - 成功返回 0，失败返回 -1（原指针不变）。
 
+函数是干嘛的：
+- `grow_int_array`：让一个 `int` 数组“安全扩容”，并更新容量。
+
 3. 在 main 中测试：
    - cap=0 -> grow -> cap=1
    - cap=2 -> grow -> cap=4
