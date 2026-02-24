@@ -88,6 +88,10 @@ int intvec_insert(IntVec *v, size_t index, int value)
    { 
       return -1;
    }
+   if (v->size >= v->cap)
+   {
+      return -1;
+   }
    int *data = v->data;
    for(size_t i=v->size;i>index;i--){
       *(data+i)=*(data+i-1);
@@ -98,7 +102,7 @@ int intvec_insert(IntVec *v, size_t index, int value)
 }
 int intvec_erase(IntVec *v, size_t index)
 {   if(v==NULL)return -1;
-   if (index >= v->size||index>=v->cap)
+   if (index >= v->size)
    {
       return -1;
    }
