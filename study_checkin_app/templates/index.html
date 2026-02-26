@@ -142,10 +142,10 @@
             <tbody>
               {% for t in tasks %}
                 <tr class="{{ 'done' if t.status == 'completed' else '' }}">
-                  <td>Day{{ t.day_num }}</td>
+                  <td>{{ day_label(t.day_num) }}</td>
                   <td>{{ t.stage }}</td>
                   <td>{{ t.title }}</td>
-                  <td>{{ leetcode_target(t.day_num) }}题</td>
+                  <td>{% if task_kind(t.day_num) == 'leetcode' %}{{ leetcode_target(t.day_num) }}题{% else %}-{% endif %}</td>
                   <td>
                     {% if t.status == 'completed' %}
                       <span class="badge done">已完成</span>

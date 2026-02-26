@@ -1,0 +1,19 @@
+
+hello      world
+		leading_tabs	and	middle_tabs		
+    leading_spaces_then_word
+trailing_word_then_spaces     
+mix  of   multiple    spaces and	 tabs
+
+punctuation: hello, world! C-language_test #2026 @chatgpt
+numbers 123 0042 3.14159 -7 +8
+symbols *** $$$ %% ^^ &&
+camelCase snake_case UPPER lower
+a b c d e f g h i j
+supercalifragilisticexpialidociousxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+中文测试没有空格
+中文 测试 有 空格
+emoji 😀 😁 😂
+
+	   
+end

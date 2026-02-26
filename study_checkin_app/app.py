@@ -17,6 +17,25 @@ PLAN_PATH = APP_DIR.parent / "C_learning_plan.md"
 
 DAY_LINE_RE = re.compile(r"- Day(\d+)\s+\((\d{4}-\d{2}-\d{2})\):\s*(.+)$")
 CHINA_TZ = ZoneInfo("Asia/Shanghai")
+FITNESS_TITLE = "健身任务：若干健身动作25*4"
+FITNESS_STAGE = "每日健身"
+LEETCODE_STAGE = "每日刷题"
+LEETCODE_TITLE_PREFIX = "LeetCode任务："
+LEETCODE_DAY_OFFSET = 100000
+SQL_BASE_DAY = f"""
+CASE
+    WHEN day_num >= {LEETCODE_DAY_OFFSET} THEN day_num - {LEETCODE_DAY_OFFSET}
+    WHEN day_num < 0 THEN -day_num
+    ELSE day_num
+END
+""".strip()
+SQL_TASK_ORDER = f"""
+CASE
+    WHEN day_num > 0 AND day_num < {LEETCODE_DAY_OFFSET} THEN 0
+    WHEN day_num < 0 THEN 1
+    ELSE 2
+END
+""".strip()
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "local-checkin-secret-key"
@@ -144,10 +163,49 @@ def seed_tasks_if_empty() -> None:
 
 
 def leetcode_target(day_num: int) -> int:
-    if day_num <= 20:
+    base_day = day_base_num(day_num)
+    if base_day <= 20:
         return 0
     # Day21 起：3,2,3,2... 交替
-    return 3 if (day_num - 21) % 2 == 0 else 2
+    return 3 if (base_day - 21) % 2 == 0 else 2
+
+
+def leetcode_day_num(day_num: int) -> int:
+    return LEETCODE_DAY_OFFSET + day_num
+
+
+def task_kind(day_num: int) -> str:
+    if day_num >= LEETCODE_DAY_OFFSET:
+        return "leetcode"
+    if day_num < 0:
+        return "fitness"
+    return "study"
+
+
+def task_sort_order(day_num: int) -> int:
+    kind = task_kind(day_num)
+    if kind == "study":
+        return 0
+    if kind == "fitness":
+        return 1
+    return 2
+
+
+def day_base_num(day_num: int) -> int:
+    if day_num >= LEETCODE_DAY_OFFSET:
+        return day_num - LEETCODE_DAY_OFFSET
+    return -day_num if day_num < 0 else day_num
+
+
+def day_label(day_num: int) -> str:
+    kind = task_kind(day_num)
+    if kind == "fitness":
+        return "健身"
+    if kind == "leetcode":
+        return "LeetCode"
+    if day_num < 0:
+        return "健身"
+    return f"Day{day_num}"
 
 
 def china_now() -> dt.datetime:
@@ -162,6 +220,161 @@ def ensure_ready() -> None:
     init_db()
     seed_tasks_if_empty()
     ensure_meta_defaults()
+    ensure_daily_fitness_tasks()
+    ensure_daily_leetcode_tasks()
+
+
+def ensure_daily_fitness_tasks() -> None:
+    """
+    保障“从今天开始每天一条独立健身任务”：
+    - 清理历史上把健身文案拼接到学习标题后的旧格式；
+    - 为未来学习任务补齐同日健身任务（day_num 使用负号区分）。
+    """
+    conn = get_conn()
+    today_str = china_today().isoformat()
+
+    # 清理旧格式："...；健身任务：若干健身动作25*4"
+    conn.execute(
+        """
+        UPDATE tasks
+        SET title = REPLACE(title, ?, '')
+        WHERE title LIKE '%' || ? || '%'
+        """,
+        ("；" + FITNESS_TITLE, "；" + FITNESS_TITLE),
+    )
+
+    study_rows = conn.execute(
+        """
+        SELECT day_num, planned_date
+        FROM tasks
+        WHERE day_num > 0
+          AND day_num < ?
+          AND date(planned_date) >= date(?)
+        ORDER BY day_num ASC
+        """,
+        (LEETCODE_DAY_OFFSET, today_str),
+    ).fetchall()
+    fitness_rows = conn.execute(
+        """
+        SELECT day_num, planned_date, status
+        FROM tasks
+        WHERE day_num < 0
+        """
+    ).fetchall()
+    fitness_map = {abs(r["day_num"]): r for r in fitness_rows}
+
+    for row in study_rows:
+        study_day_num = int(row["day_num"])
+        study_date = row["planned_date"]
+        fit = fitness_map.get(study_day_num)
+        if fit is None:
+            conn.execute(
+                """
+                INSERT INTO tasks (day_num, stage, planned_date, title, status)
+                VALUES (?, ?, ?, ?, 'pending')
+                """,
+                (-study_day_num, FITNESS_STAGE, study_date, FITNESS_TITLE),
+            )
+            continue
+
+        # 已存在则修正标题/阶段；若未完成则对齐计划日期。
+        conn.execute(
+            """
+            UPDATE tasks
+            SET stage = ?, title = ?
+            WHERE day_num = ?
+            """,
+            (FITNESS_STAGE, FITNESS_TITLE, -study_day_num),
+        )
+        if fit["status"] == "pending" and fit["planned_date"] != study_date:
+            conn.execute(
+                "UPDATE tasks SET planned_date = ? WHERE day_num = ?",
+                (study_date, -study_day_num),
+            )
+
+    conn.commit()
+    conn.close()
+
+
+def ensure_daily_leetcode_tasks() -> None:
+    """
+    保障“从今天开始，LeetCode 题量>0 的天有独立任务行”：
+    - 0 题天不创建 LeetCode 行；
+    - 已有行会自动修正标题/阶段；
+    - 未完成行会与对应学习任务日期对齐。
+    """
+    conn = get_conn()
+    today_str = china_today().isoformat()
+
+    study_rows = conn.execute(
+        """
+        SELECT day_num, planned_date
+        FROM tasks
+        WHERE day_num > 0
+          AND day_num < ?
+          AND date(planned_date) >= date(?)
+        ORDER BY day_num ASC
+        """,
+        (LEETCODE_DAY_OFFSET, today_str),
+    ).fetchall()
+    lc_rows = conn.execute(
+        """
+        SELECT day_num, planned_date, status
+        FROM tasks
+        WHERE day_num >= ?
+        """,
+        (LEETCODE_DAY_OFFSET,),
+    ).fetchall()
+    lc_map = {int(r["day_num"]) - LEETCODE_DAY_OFFSET: r for r in lc_rows}
+
+    valid_days: set[int] = set()
+    for row in study_rows:
+        day_num = int(row["day_num"])
+        study_date = row["planned_date"]
+        target = leetcode_target(day_num)
+        lc_day_num = leetcode_day_num(day_num)
+        lc_title = f"{LEETCODE_TITLE_PREFIX}{target}题"
+        existing = lc_map.get(day_num)
+
+        if target <= 0:
+            if existing and existing["status"] == "pending":
+                conn.execute("DELETE FROM tasks WHERE day_num = ?", (lc_day_num,))
+            continue
+
+        valid_days.add(day_num)
+        if existing is None:
+            conn.execute(
+                """
+                INSERT INTO tasks (day_num, stage, planned_date, title, status)
+                VALUES (?, ?, ?, ?, 'pending')
+                """,
+                (lc_day_num, LEETCODE_STAGE, study_date, lc_title),
+            )
+            continue
+
+        conn.execute(
+            """
+            UPDATE tasks
+            SET stage = ?, title = ?
+            WHERE day_num = ?
+            """,
+            (LEETCODE_STAGE, lc_title, lc_day_num),
+        )
+        if existing["status"] == "pending" and existing["planned_date"] != study_date:
+            conn.execute(
+                "UPDATE tasks SET planned_date = ? WHERE day_num = ?",
+                (study_date, lc_day_num),
+            )
+
+    # 清理无效且未完成的 LeetCode 行（如 0 题日或计划已调整）。
+    for row in lc_rows:
+        row_day_num = int(row["day_num"])
+        base_day = row_day_num - LEETCODE_DAY_OFFSET
+        if base_day not in valid_days and row["status"] == "pending":
+            conn.execute("DELETE FROM tasks WHERE day_num = ?", (row_day_num,))
+
+    conn.commit()
+    conn.close()
 
 
 def ensure_meta_defaults() -> None:
@@ -283,11 +496,11 @@ def parse_sim_today(raw_value: str | None) -> dt.date | None:
 def pick_default_view_date(conn: sqlite3.Connection, today: dt.date) -> dt.date:
     # 找到最早未完成任务日期。
     row = conn.execute(
-        """
+        f"""
         SELECT planned_date
         FROM tasks
         WHERE status = 'pending'
-        ORDER BY date(planned_date) ASC, day_num ASC
+        ORDER BY date(planned_date) ASC, {SQL_BASE_DAY} ASC, {SQL_TASK_ORDER} ASC
         LIMIT 1
         """,
     ).fetchone()
@@ -335,23 +548,41 @@ def pick_anchor_task_date(conn: sqlite3.Connection, today: dt.date) -> dt.date:
       避免页面在同一天内跳来跳去，导致未来日期撤销按钮消失。
     """
     today_str = today.isoformat()
-    pending_row = conn.execute(
+    pending_study_row = conn.execute(
         """
         SELECT planned_date
         FROM tasks
         WHERE status = 'pending'
+          AND day_num > 0
+          AND day_num < ?
         ORDER BY date(planned_date) ASC, day_num ASC
+        LIMIT 1
+        """,
+        (LEETCODE_DAY_OFFSET,),
+    ).fetchone()
+    if pending_study_row:
+        try:
+            return dt.date.fromisoformat(pending_study_row["planned_date"])
+        except ValueError:
+            pass
+
+    pending_row = conn.execute(
+        f"""
+        SELECT planned_date
+        FROM tasks
+        WHERE status = 'pending'
+        ORDER BY date(planned_date) ASC, {SQL_BASE_DAY} ASC, {SQL_TASK_ORDER} ASC
         LIMIT 1
         """,
     ).fetchone()
     completed_today_row = conn.execute(
-        """
+        f"""
         SELECT planned_date
         FROM tasks
         WHERE status = 'completed'
           AND completed_at IS NOT NULL
           AND date(completed_at) = date(?)
-        ORDER BY date(planned_date) ASC, day_num ASC
+        ORDER BY date(planned_date) ASC, {SQL_BASE_DAY} ASC, {SQL_TASK_ORDER} ASC
         LIMIT 1
         """,
         (today_str,),
@@ -373,14 +604,92 @@ def pick_anchor_task_date(conn: sqlite3.Connection, today: dt.date) -> dt.date:
         except ValueError:
             completed_today_date = None
 
-    # 逾期/今天未完成优先处理。
-    if pending_date and pending_date <= today:
+    # 只要还有未完成任务，就以最早 pending 为锚点，避免今天出现空白列表。
+    if pending_date is not None:
         return pending_date
 
-    candidates = [d for d in (completed_today_date, pending_date) if d is not None]
-    if not candidates:
-        return today
-    return min(candidates)
+    if completed_today_date is not None:
+        return completed_today_date
+    return today
+
+
+def list_pending_dates_from(
+    conn: sqlite3.Connection, start_date: dt.date
+) -> list[dt.date]:
+    rows = conn.execute(
+        """
+        SELECT DISTINCT planned_date
+        FROM tasks
+        WHERE status = 'pending' AND date(planned_date) >= date(?)
+        ORDER BY date(planned_date) ASC
+        """,
+        (start_date.isoformat(),),
+    ).fetchall()
+    result: list[dt.date] = []
+    for r in rows:
+        try:
+            result.append(dt.date.fromisoformat(r["planned_date"]))
+        except ValueError:
+            continue
+    return result
+
+
+def list_pending_study_dates_from(
+    conn: sqlite3.Connection, start_date: dt.date
+) -> list[dt.date]:
+    rows = conn.execute(
+        """
+        SELECT DISTINCT planned_date
+        FROM tasks
+        WHERE status = 'pending'
+          AND day_num > 0
+          AND day_num < ?
+          AND date(planned_date) >= date(?)
+        ORDER BY date(planned_date) ASC, day_num ASC
+        """,
+        (LEETCODE_DAY_OFFSET, start_date.isoformat()),
+    ).fetchall()
+    result: list[dt.date] = []
+    for r in rows:
+        try:
+            result.append(dt.date.fromisoformat(r["planned_date"]))
+        except ValueError:
+            continue
+    return result
+
+
+def map_display_to_task_date(
+    conn: sqlite3.Connection,
+    today: dt.date,
+    display_date: dt.date,
+    anchor_date: dt.date,
+) -> dt.date:
+    """
+    将“查看日期”映射到“任务日期”：
+    - 当用户提前完成未来任务后，跳过已无 pending 的空档日期；
+    - 保持“今天”锚点逻辑不变。
+    """
+    if display_date <= today:
+        return anchor_date
+
+    offset = (display_date - today).days
+    pending_dates = list_pending_study_dates_from(conn, anchor_date)
+    if not pending_dates:
+        pending_dates = list_pending_dates_from(conn, anchor_date)
+    if not pending_dates:
+        return anchor_date + dt.timedelta(days=offset)
+
+    anchor_has_pending = pending_dates[0] == anchor_date
+    if anchor_has_pending:
+        # offset=1 -> 下一个 pending 日
+        if offset < len(pending_dates):
+            return pending_dates[offset]
+        return pending_dates[-1] + dt.timedelta(days=offset - (len(pending_dates) - 1))
+
+    # anchor 当天已无 pending，offset=1 对应第一个 pending 日
+    if offset <= len(pending_dates):
+        return pending_dates[offset - 1]
+    return pending_dates[-1] + dt.timedelta(days=offset - len(pending_dates))
 
 
 @app.route("/")
@@ -408,13 +717,13 @@ def index():
         display_date = parse_view_date(raw_date, effective_today)
         # 规则：
         # 1) 过去日期：用于回看历史，任务按该日期显示。
-        # 2) 今天及未来日期：以“今天锚点任务”为基准，每天顺推 1 个任务。
+        # 2) 今天及未来日期：以“今天锚点任务”为基准，按 pending 序列顺推，
+        #    跳过因“超前完成”产生的空档日期。
         if display_date < today:
             auto_focus = False
             task_date = display_date
         else:
-            delta_days = (display_date - today).days
-            task_date = anchor_date + dt.timedelta(days=delta_days)
+            task_date = map_display_to_task_date(conn, today, display_date, anchor_date)
             auto_focus = True
     else:
         display_date = effective_today
@@ -428,23 +737,24 @@ def index():
     is_today = display_date == today
 
     planned_tasks = conn.execute(
-        """
+        f"""
         SELECT id, day_num, stage, planned_date, title, status, completed_at
         FROM tasks
         WHERE date(planned_date) = date(?)
-        ORDER BY day_num ASC
+        ORDER BY {SQL_BASE_DAY} ASC, {SQL_TASK_ORDER} ASC
         """,
         (task_date_str,),
     ).fetchall()
     planned_pending_tasks = [t for t in planned_tasks if t["status"] == "pending"]
     completed_on_display_date = conn.execute(
-        """
+        f"""
         SELECT id, day_num, stage, planned_date, title, status, completed_at
         FROM tasks
         WHERE status = 'completed'
           AND completed_at IS NOT NULL
           AND date(completed_at) = date(?)
-        ORDER BY datetime(completed_at) ASC, day_num ASC
+        ORDER BY datetime(completed_at) ASC,
+                 {SQL_BASE_DAY} ASC, {SQL_TASK_ORDER} ASC
         """,
         (display_date_str,),
     ).fetchall()
@@ -460,13 +770,17 @@ def index():
         daily_task_map[t["id"]] = t
     daily_tasks = sorted(
         daily_task_map.values(),
-        key=lambda t: (t["day_num"], t["completed_at"] or ""),
+        key=lambda t: (
+            day_base_num(t["day_num"]),
+            task_sort_order(t["day_num"]),
+            t["completed_at"] or "",
+        ),
     )
     all_tasks = conn.execute(
-        """
+        f"""
         SELECT id, day_num, stage, planned_date, title, status, completed_at
         FROM tasks
-        ORDER BY date(planned_date) ASC, day_num ASC
+        ORDER BY date(planned_date) ASC, {SQL_BASE_DAY} ASC, {SQL_TASK_ORDER} ASC
         """
     ).fetchall()
 
@@ -516,9 +830,15 @@ def index():
     extra_completed_count = sum(
         1 for t in completed_on_display_date if t["planned_date"] > display_date_str
     )
-    daily_leetcode = sum(leetcode_target(t["day_num"]) for t in daily_tasks)
+    daily_leetcode = sum(
+        leetcode_target(t["day_num"])
+        for t in daily_tasks
+        if task_kind(t["day_num"]) == "leetcode"
+    )
     daily_leetcode_pending = sum(
-        leetcode_target(t["day_num"]) for t in daily_tasks if t["status"] == "pending"
+        leetcode_target(t["day_num"])
+        for t in daily_tasks
+        if t["status"] == "pending" and task_kind(t["day_num"]) == "leetcode"
     )
 
     sim_today_str = sim_today.isoformat() if sim_today else ""
@@ -567,6 +887,8 @@ def index():
         daily_leetcode=daily_leetcode,
         daily_leetcode_pending=daily_leetcode_pending,
         leetcode_target=leetcode_target,
+        task_kind=task_kind,
+        day_label=day_label,
         auto_rollover_enabled=auto_rollover_enabled,
     )
 
@@ -899,10 +1221,10 @@ def overview():
     effective_today = sim_today or china_today()
     conn = get_conn()
     tasks = conn.execute(
-        """
+        f"""
         SELECT id, day_num, stage, planned_date, title, status, completed_at
         FROM tasks
-        ORDER BY date(planned_date) ASC, day_num ASC
+        ORDER BY date(planned_date) ASC, {SQL_BASE_DAY} ASC, {SQL_TASK_ORDER} ASC
         """
     ).fetchall()
     leave_logs = conn.execute(
@@ -942,14 +1264,18 @@ def overview():
         day_completed_tasks = completed_tasks_by_date.get(date_key, [])
         day_completed_tasks = sorted(
             day_completed_tasks,
-            key=lambda t: (t["completed_at"] or "", t["day_num"]),
+            key=lambda t: (
+                t["completed_at"] or "",
+                day_base_num(t["day_num"]),
+                task_sort_order(t["day_num"]),
+            ),
         )
         total_count = planned_count_by_date.get(date_key, 0)
         completed_count = len(day_completed_tasks)
         rate = round((completed_count / total_count) * 100, 1) if total_count else 0
         planned_day_tasks = sorted(
             planned_tasks_by_date.get(date_key, []),
-            key=lambda t: t["day_num"],
+            key=lambda t: (day_base_num(t["day_num"]), task_sort_order(t["day_num"])),
         )
         date_details.append(
             {
@@ -988,6 +1314,7 @@ def overview():
         real_today=china_today().isoformat(),
         preview_mode=preview_mode,
         sim_today=sim_today.isoformat() if sim_today else "",
+        day_label=day_label,
     )
 
 

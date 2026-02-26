@@ -71,7 +71,7 @@
                     <ul class="leave-logs">
                       {% for t in row.completed_tasks %}
                         <li>
-                          <strong>Day{{ t.day_num }}</strong>
+                          <strong>{{ day_label(t.day_num) }}</strong>
                           {{ t.title }}
                           <span class="ts">({{ t.completed_at }})</span>
                         </li>
@@ -82,7 +82,7 @@
                       <ul class="leave-logs">
                         {% for t in row.planned_tasks %}
                           <li>
-                            <strong>Day{{ t.day_num }}</strong>
+                            <strong>{{ day_label(t.day_num) }}</strong>
                             {{ t.title }}（未完成）
                           </li>
                         {% endfor %}
