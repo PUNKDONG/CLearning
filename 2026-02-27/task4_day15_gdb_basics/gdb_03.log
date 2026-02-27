@@ -1,0 +1,130 @@
+Breakpoint 1 at 0x1208: file 03_watchpoint_track_change.c, line 58.
+Starting program: /home/zy/CLearning/2026-02-27/task4_day15_gdb_basics/03_watchpoint_track_change 
+
+This GDB supports auto-downloading debuginfo from the following URLs:
+  <https://debuginfod.ubuntu.com>
+Debuginfod has been disabled.
+To make this setting permanent, add 'set debuginfod enabled off' to .gdbinit.
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib/x86_64-linux-gnu/libthread_db.so.1".
+
+Breakpoint 1, main () at 03_watchpoint_track_change.c:58
+58	{
+53	{
+54	    printf("expected=120, actual=%d\n", *state);
+55	}
+56	
+57	int main(void)
+58	{
+59	    int state = 0;
+60	
+61	    init_state(&state);       /* state = 100 */
+62	    apply_bonus(&state, 20);  /* state = 120 */
+Hardware watchpoint 2: state
+Continuing.
+
+Hardware watchpoint 2: state
+
+Old value = 32767
+New value = 0
+main () at 03_watchpoint_track_change.c:61
+61	    init_state(&state);       /* state = 100 */
+init_state (state=0x7fffffffd3a4) at 03_watchpoint_track_change.c:32
+32	    *state = 100;
+
+Hardware watchpoint 2: state
+
+Old value = 0
+New value = 100
+init_state (state=0x7fffffffd3a4) at 03_watchpoint_track_change.c:33
+33	}
+Run till exit from #0  init_state (state=0x7fffffffd3a4) at 03_watchpoint_track_change.c:33
+main () at 03_watchpoint_track_change.c:62
+62	    apply_bonus(&state, 20);  /* state = 120 */
+apply_bonus (state=0x7fffffffd3a4, bonus=20) at 03_watchpoint_track_change.c:37
+37	    *state += bonus;
+
+Hardware watchpoint 2: state
+
+Old value = 100
+New value = 120
+apply_bonus (state=0x7fffffffd3a4, bonus=20) at 03_watchpoint_track_change.c:38
+38	}
+Run till exit from #0  apply_bonus (state=0x7fffffffd3a4, bonus=20) at 03_watchpoint_track_change.c:38
+main () at 03_watchpoint_track_change.c:63
+63	    sanitize_state(&state);   /* BUG: state = 119 */
+sanitize_state (state=0x7fffffffd3a4) at 03_watchpoint_track_change.c:47
+47	    if (*state > 0) {
+48	        *state -= 1; /* BUG: 导致最终值错误 */
+
+Hardware watchpoint 2: state
+
+Old value = 120
+New value = 119
+sanitize_state (state=0x7fffffffd3a4) at 03_watchpoint_track_change.c:50
+50	}
+main () at 03_watchpoint_track_change.c:65
+65	    print_result(&state);
+#0  main () at 03_watchpoint_track_change.c:65
+Continuing.
+
+Watchpoint 2 deleted because the program has left the block in
+which its expression is valid.
+__libc_start_call_main (main=main@entry=0x5555555551fc <main>, argc=argc@entry=1, argv=argv@entry=0x7fffffffd4d8) at ../sysdeps/nptl/libc_start_call_main.h:74
+warning: 74	../sysdeps/nptl/libc_start_call_main.h: No such file or directory
+#0  __libc_start_call_main (main=main@entry=0x5555555551fc <main>, argc=argc@entry=1, argv=argv@entry=0x7fffffffd4d8) at ../sysdeps/nptl/libc_start_call_main.h:74
+#1  0x00007ffff7c2a28b in __libc_start_main_impl (main=0x5555555551fc <main>, argc=1, argv=0x7fffffffd4d8, init=<optimized out>, fini=<optimized out>, rtld_fini=<optimized out>, stack_end=0x7fffffffd4c8) at ../csu/libc-start.c:360
+#2  0x00005555555550a5 in _start ()
+$1 = {__count = 0, __value = {__wch = 0, __wchb = "\000\000\000"}}
+Program not restarted.
+Starting program: /home/zy/CLearning/2026-02-27/task4_day15_gdb_basics/03_watchpoint_track_change 
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib/x86_64-linux-gnu/libthread_db.so.1".
+
+Breakpoint 1, main () at 03_watchpoint_track_change.c:58
+58	{
+Note: breakpoint 1 also set at pc 0x555555555208.
+Breakpoint 3 at 0x555555555208: file 03_watchpoint_track_change.c, line 58.
+Hardware watchpoint 4: state
+Continuing.
+
+Hardware watchpoint 4: state
+
+Old value = 32767
+New value = 0
+main () at 03_watchpoint_track_change.c:61
+61	    init_state(&state);       /* state = 100 */
+#0  main () at 03_watchpoint_track_change.c:61
+
+Hardware watchpoint 4: state
+
+Old value = 0
+New value = 100
+init_state (state=0x7fffffffd3a4) at 03_watchpoint_track_change.c:33
+33	}
+#0  init_state (state=0x7fffffffd3a4) at 03_watchpoint_track_change.c:33
+#1  0x000055555555522a in main () at 03_watchpoint_track_change.c:61
+Continuing.
+
+Hardware watchpoint 4: state
+
+Old value = 100
+New value = 120
+apply_bonus (state=0x7fffffffd3a4, bonus=20) at 03_watchpoint_track_change.c:38
+38	}
+main () at 03_watchpoint_track_change.c:63
+63	    sanitize_state(&state);   /* BUG: state = 119 */
+#0  main () at 03_watchpoint_track_change.c:63
+
+Hardware watchpoint 4: state
+
+Old value = 120
+New value = 119
+sanitize_state (state=0x7fffffffd3a4) at 03_watchpoint_track_change.c:50
+50	}
+#0  sanitize_state (state=0x7fffffffd3a4) at 03_watchpoint_track_change.c:50
+#1  0x0000555555555247 in main () at 03_watchpoint_track_change.c:63
+main () at 03_watchpoint_track_change.c:65
+65	    print_result(&state);
+#0  main () at 03_watchpoint_track_change.c:65
+$2 = 119

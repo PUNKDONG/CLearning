@@ -1,0 +1,35 @@
+Starting program: /home/zy/CLearning/2026-02-27/task4_day15_gdb_basics/02_backtrace_on_crash 
+
+This GDB supports auto-downloading debuginfo from the following URLs:
+  <https://debuginfod.ubuntu.com>
+Debuginfod has been disabled.
+To make this setting permanent, add 'set debuginfod enabled off' to .gdbinit.
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib/x86_64-linux-gnu/libthread_db.so.1".
+
+Program received signal SIGSEGV, Segmentation fault.
+0x0000555555555162 in compute_score (p=0x0, base=42) at 02_backtrace_on_crash.c:33
+33	    *p = base + 10;
+#1  0x0000555555555194 in process_user (uid=42) at 02_backtrace_on_crash.c:40
+40	    return compute_score(score_ptr, uid);
+No symbol "all" in current context.
+#0  0x0000555555555162 in compute_score (p=0x0, base=42) at 02_backtrace_on_crash.c:33
+#1  0x0000555555555194 in process_user (uid=42) at 02_backtrace_on_crash.c:40
+#2  0x00005555555551b3 in main () at 02_backtrace_on_crash.c:46
+#0  0x0000555555555162 in compute_score (p=0x0, base=42) at 02_backtrace_on_crash.c:33
+33	    *p = base + 10;
+28	#include <stdio.h>
+29	
+30	static int compute_score(int *p, int base)
+31	{
+32	    /* 故意崩溃点：p 为空时解引用 */
+33	    *p = base + 10;
+34	    return *p;
+35	}
+36	
+37	static int process_user(int uid)
+#0  0x0000555555555162 in compute_score (p=0x0, base=42) at 02_backtrace_on_crash.c:33
+33	    *p = base + 10;
+$1 = (int *) 0x0
+p = 0x0
+base = 42

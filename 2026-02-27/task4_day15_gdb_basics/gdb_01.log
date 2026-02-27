@@ -1,0 +1,51 @@
+Already logging to gdb_01.log.
+Breakpoint 1 at 0x116d: file 01_breakpoint_and_step.c, line 39.
+25	- continue
+26	
+27	验收：
+28	- 你能指出“哪一行逻辑错了”并说出证据（变量值）。
+29	*/
+30	
+31	#include <stdio.h>
+32	#include <stdlib.h>
+33	int sum(int a, int b)
+34	{
+35	   return a + b;
+36	}
+37	int main(void)
+38	{
+39	   int a = 1;
+40	   int b = 2;
+41	   printf("%d\n", sum(a, b));
+42	   return 0;
+43	}
+Starting program: /home/zy/CLearning/2026-02-27/task4_day15_gdb_basics/01_breakpoint_and_step 
+
+This GDB supports auto-downloading debuginfo from the following URLs:
+  <https://debuginfod.ubuntu.com>
+Debuginfod has been disabled.
+To make this setting permanent, add 'set debuginfod enabled off' to .gdbinit.
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib/x86_64-linux-gnu/libthread_db.so.1".
+
+Breakpoint 1, main () at 01_breakpoint_and_step.c:39
+39	   int a = 1;
+40	   int b = 2;
+41	   printf("%d\n", sum(a, b));
+sum (a=1, b=2) at 01_breakpoint_and_step.c:35
+35	   return a + b;
+Run till exit from #0  sum (a=1, b=2) at 01_breakpoint_and_step.c:35
+0x000055555555518a in main () at 01_breakpoint_and_step.c:41
+41	   printf("%d\n", sum(a, b));
+Value returned is $1 = 3
+$2 = 1
+$3 = 2
+$4 = 3
+$1 = 3
+$2 = 1
+$3 = 2
+$4 = 3
+a = 1
+b = 2
+Continuing.
+[Inferior 1 (process 37279) exited normally]
