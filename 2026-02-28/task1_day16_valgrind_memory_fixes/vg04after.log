@@ -1,0 +1,21 @@
+==161276== Memcheck, a memory error detector
+==161276== Copyright (C) 2002-2022, and GNU GPL'd, by Julian Seward et al.
+==161276== Using Valgrind-3.22.0 and LibVEX; rerun with -h for copyright info
+==161276== Command: ./04_heap_tail_overflow_fix
+==161276== Parent PID: 98707
+==161276== 
+==161276== Invalid read of size 4
+==161276==    at 0x109242: main (04_heap_tail_overflow_fix.c:21)
+==161276==  Address 0x4a75054 is 0 bytes after a block of size 20 alloc'd
+==161276==    at 0x4846828: malloc (in /usr/libexec/valgrind/vgpreload_memcheck-amd64-linux.so)
+==161276==    by 0x1091CC: main (04_heap_tail_overflow_fix.c:11)
+==161276== 
+==161276== 
+==161276== HEAP SUMMARY:
+==161276==     in use at exit: 0 bytes in 0 blocks
+==161276==   total heap usage: 2 allocs, 2 frees, 1,044 bytes allocated
+==161276== 
+==161276== All heap blocks were freed -- no leaks are possible
+==161276== 
+==161276== For lists of detected and suppressed errors, rerun with: -s
+==161276== ERROR SUMMARY: 1 errors from 1 contexts (suppressed: 0 from 0)

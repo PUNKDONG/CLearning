@@ -1,0 +1,15 @@
+==153209== Memcheck, a memory error detector
+==153209== Copyright (C) 2002-2022, and GNU GPL'd, by Julian Seward et al.
+==153209== Using Valgrind-3.22.0 and LibVEX; rerun with -h for copyright info
+==153209== Command: ./02_memory_leak_fix
+==153209== Parent PID: 98707
+==153209== 
+==153209== 
+==153209== HEAP SUMMARY:
+==153209==     in use at exit: 0 bytes in 0 blocks
+==153209==   total heap usage: 3 allocs, 3 frees, 1,192 bytes allocated
+==153209== 
+==153209== All heap blocks were freed -- no leaks are possible
+==153209== 
+==153209== For lists of detected and suppressed errors, rerun with: -s
+==153209== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)

@@ -74,16 +74,21 @@ valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes \
 
 ---
 
-## 6. 今日任务（3 题）
+## 6. 今日任务（4 题，覆盖全部核心场景）
 
-1. `01_memory_leak_fix.c`  
-   目标：修复泄漏，让 `definitely lost` 变 0。
+说明：下面 4 个 `.c` 文件已经是“故意带 bug 的可运行起始代码”，你的任务是用 `valgrind` 定位并修复。
 
-2. `02_invalid_access_fix.c`  
-   目标：修复非法访问（越界/悬空），让 `Invalid read/write` 消失。
+1. `01_uninitialized_memory_fix.c`  
+   目标：复现并修复“使用未初始化内存”（`Use of uninitialised value`）。
 
-3. `03_two_bugs_in_one.c`  
-   目标：同一程序里至少修 2 类问题（泄漏 + 非法访问）。
+2. `02_memory_leak_fix.c`  
+   目标：复现并修复“内存泄漏”（`definitely lost`）。
+
+3. `03_use_after_free_fix.c`  
+   目标：复现并修复“释放后继续读写”（`Invalid read/write` + free 相关调用栈）。
+
+4. `04_heap_tail_overflow_fix.c`  
+   目标：复现并修复“在内存块尾部越界读写”（heap buffer overflow/overrun）。
 
 每题流程固定：
 
@@ -105,5 +110,4 @@ valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes \
 
 今天最低通过线：
 
-- 至少 2 个不同类型内存问题被修复。  
-
+- 4 个场景都至少完成“复现 + 修复 + 日志对比”。  

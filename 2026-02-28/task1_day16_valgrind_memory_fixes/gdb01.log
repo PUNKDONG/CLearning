@@ -1,0 +1,87 @@
+Breakpoint 1 at 0x11b5: file 01_uninitialized_memory_fix.c, line 15.
+1	/*
+2	Day16 练习1（故意带 bug）：
+3	目标：用 valgrind 抓到“使用未初始化内存”并修复。
+4	
+5	你要做的事：
+6	1) 先按原样编译并运行 valgrind（不要先改代码）。
+7	2) 定位报错行。
+8	3) 修复后再次跑 valgrind，对比前后日志。
+9	*/
+10	
+11	#include <stdio.h>
+12	#include <stdlib.h>
+13	
+14	int main(void) {
+15	    size_t n = 8;
+16	    int *arr = (int *)malloc(n * sizeof(int));
+17	    if (arr == NULL) {
+18	        perror("malloc");
+19	        return 1;
+20	    }
+21	
+22	    for (size_t i = 0; i < 4; i++) {
+23	        arr[i] = (int)(i + 1);
+24	    }
+25	    /* bug: arr[4..7] 未初始化 */
+26	
+27	    int sum = 0;
+28	    for (size_t i = 0; i < n; i++) {
+29	        sum += arr[i]; /* 这里会读到未初始化值 */
+30	    }
+Breakpoint 2 at 0x1236: file 01_uninitialized_memory_fix.c, line 29.
+Breakpoint 3 at 0x122c: file 01_uninitialized_memory_fix.c, line 28.
+Starting program: /home/zy/CLearning/2026-02-28/task1_day16_valgrind_memory_fixes/01_uninitialized_memory_fix 
+
+This GDB supports auto-downloading debuginfo from the following URLs:
+  <https://debuginfod.ubuntu.com>
+Debuginfod has been disabled.
+To make this setting permanent, add 'set debuginfod enabled off' to .gdbinit.
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib/x86_64-linux-gnu/libthread_db.so.1".
+
+Breakpoint 1, main () at 01_uninitialized_memory_fix.c:15
+15	    size_t n = 8;
+16	    int *arr = (int *)malloc(n * sizeof(int));
+Continuing.
+
+Breakpoint 3, main () at 01_uninitialized_memory_fix.c:28
+28	    for (size_t i = 0; i < n; i++) {
+The history is empty.
+
+Breakpoint 2, main () at 01_uninitialized_memory_fix.c:29
+29	        sum += arr[i]; /* 这里会读到未初始化值 */
+$1 = {0x5555555592a0, 0x7fffffffd420, 0x7ffff7c2a1ca <__libc_start_call_main+122>, 0x7fffffffd3d0, 0x7fffffffd4a8, 0x155554040, 0x5555555551a9 <main>, 0x7fffffffd4a8}
+28	    for (size_t i = 0; i < n; i++) {
+
+Breakpoint 2, main () at 01_uninitialized_memory_fix.c:29
+29	        sum += arr[i]; /* 这里会读到未初始化值 */
+28	    for (size_t i = 0; i < n; i++) {
+
+Breakpoint 2, main () at 01_uninitialized_memory_fix.c:29
+29	        sum += arr[i]; /* 这里会读到未初始化值 */
+$2 = {0x5555555592a0, 0x7fffffffd420, 0x7ffff7c2a1ca <__libc_start_call_main+122>, 0x7fffffffd3d0, 0x7fffffffd4a8, 0x155554040, 0x5555555551a9 <main>, 0x7fffffffd4a8}
+$3 = {1, 2, 3, 4, 0, 0, 0, 0}
+Continuing.
+
+Breakpoint 2, main () at 01_uninitialized_memory_fix.c:29
+29	        sum += arr[i]; /* 这里会读到未初始化值 */
+Continuing.
+
+Breakpoint 2, main () at 01_uninitialized_memory_fix.c:29
+29	        sum += arr[i]; /* 这里会读到未初始化值 */
+Continuing.
+
+Breakpoint 2, main () at 01_uninitialized_memory_fix.c:29
+29	        sum += arr[i]; /* 这里会读到未初始化值 */
+Continuing.
+
+Breakpoint 2, main () at 01_uninitialized_memory_fix.c:29
+29	        sum += arr[i]; /* 这里会读到未初始化值 */
+Continuing.
+
+Breakpoint 2, main () at 01_uninitialized_memory_fix.c:29
+29	        sum += arr[i]; /* 这里会读到未初始化值 */
+Continuing.
+[Inferior 1 (process 120993) exited normally]
+The program is not being run.
