@@ -1050,7 +1050,22 @@ def checkin(task_id: int):
         return redirect(url_for("index", date=display_date, sim_today=sim_today))
     now = china_now().strftime("%Y-%m-%d %H:%M:%S")
     conn = get_conn()
-    row = conn.execute("SELECT status FROM tasks WHERE id = ?", (task_id,)).fetchone()
+    resolved_task_id = task_id
+    row = conn.execute("SELECT id, status FROM tasks WHERE id = ?", (task_id,)).fetchone()
+    if row is None:
+        day_num_raw = (request.form.get("day_num") or "").strip()
+        if day_num_raw:
+            try:
+                day_num = int(day_num_raw)
+            except ValueError:
+                day_num = None
+            if day_num is not None:
+                row = conn.execute(
+                    "SELECT id, status FROM tasks WHERE day_num = ?",
+                    (day_num,),
+                ).fetchone()
+                if row is not None:
+                    resolved_task_id = int(row["id"])
     if row is None:
         conn.close()
         flash("任务不存在。", "error")
@@ -1062,7 +1077,7 @@ def checkin(task_id: int):
 
     conn.execute(
         "UPDATE tasks SET status = 'completed', completed_at = ? WHERE id = ?",
-        (now, task_id),
+        (now, resolved_task_id),
     )
     conn.commit()
     conn.close()
@@ -1079,7 +1094,22 @@ def undo(task_id: int):
         flash("预览模式下不能修改数据，请先恢复真实今天。", "info")
         return redirect(url_for("index", date=display_date, sim_today=sim_today))
     conn = get_conn()
-    row = conn.execute("SELECT status FROM tasks WHERE id = ?", (task_id,)).fetchone()
+    resolved_task_id = task_id
+    row = conn.execute("SELECT id, status FROM tasks WHERE id = ?", (task_id,)).fetchone()
+    if row is None:
+        day_num_raw = (request.form.get("day_num") or "").strip()
+        if day_num_raw:
+            try:
+                day_num = int(day_num_raw)
+            except ValueError:
+                day_num = None
+            if day_num is not None:
+                row = conn.execute(
+                    "SELECT id, status FROM tasks WHERE day_num = ?",
+                    (day_num,),
+                ).fetchone()
+                if row is not None:
+                    resolved_task_id = int(row["id"])
     if row is None:
         conn.close()
         flash("任务不存在。", "error")
@@ -1087,7 +1117,7 @@ def undo(task_id: int):
 
     conn.execute(
         "UPDATE tasks SET status = 'pending', completed_at = NULL WHERE id = ?",
-        (task_id,),
+        (resolved_task_id,),
     )
     conn.commit()
     conn.close()

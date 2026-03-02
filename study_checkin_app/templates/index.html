@@ -161,12 +161,14 @@
                       <form method="post" action="{{ url_for('checkin', task_id=t.id) }}">
                         <input type="hidden" name="display_date" value="{{ display_date }}" />
                         <input type="hidden" name="sim_today" value="{{ sim_today }}" />
+                        <input type="hidden" name="day_num" value="{{ t.day_num }}" />
                         <button type="submit" class="ok" {% if preview_mode %}disabled{% endif %}>完成</button>
                       </form>
                     {% else %}
                       <form method="post" action="{{ url_for('undo', task_id=t.id) }}">
                         <input type="hidden" name="display_date" value="{{ display_date }}" />
                         <input type="hidden" name="sim_today" value="{{ sim_today }}" />
+                        <input type="hidden" name="day_num" value="{{ t.day_num }}" />
                         <button type="submit" class="warn" {% if preview_mode %}disabled{% endif %}>撤销</button>
                       </form>
                     {% endif %}
