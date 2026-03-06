@@ -1,0 +1,1 @@
+/usr/bin/cc CMakeFiles/mini_grep.dir/src/main.c.o CMakeFiles/mini_grep.dir/src/args.c.o CMakeFiles/mini_grep.dir/src/grep.c.o -o mini_grep 

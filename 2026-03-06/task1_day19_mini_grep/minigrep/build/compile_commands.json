@@ -1,0 +1,20 @@
+[
+{
+  "directory": "/home/zy/CLearning/2026-03-06/task1_day19_mini_grep/minigrep/build",
+  "command": "/usr/bin/cc  -I/home/zy/CLearning/2026-03-06/task1_day19_mini_grep/minigrep/include -std=gnu11 -o CMakeFiles/mini_grep.dir/src/main.c.o -c /home/zy/CLearning/2026-03-06/task1_day19_mini_grep/minigrep/src/main.c",
+  "file": "/home/zy/CLearning/2026-03-06/task1_day19_mini_grep/minigrep/src/main.c",
+  "output": "CMakeFiles/mini_grep.dir/src/main.c.o"
+},
+{
+  "directory": "/home/zy/CLearning/2026-03-06/task1_day19_mini_grep/minigrep/build",
+  "command": "/usr/bin/cc  -I/home/zy/CLearning/2026-03-06/task1_day19_mini_grep/minigrep/include -std=gnu11 -o CMakeFiles/mini_grep.dir/src/args.c.o -c /home/zy/CLearning/2026-03-06/task1_day19_mini_grep/minigrep/src/args.c",
+  "file": "/home/zy/CLearning/2026-03-06/task1_day19_mini_grep/minigrep/src/args.c",
+  "output": "CMakeFiles/mini_grep.dir/src/args.c.o"
+},
+{
+  "directory": "/home/zy/CLearning/2026-03-06/task1_day19_mini_grep/minigrep/build",
+  "command": "/usr/bin/cc  -I/home/zy/CLearning/2026-03-06/task1_day19_mini_grep/minigrep/include -std=gnu11 -o CMakeFiles/mini_grep.dir/src/grep.c.o -c /home/zy/CLearning/2026-03-06/task1_day19_mini_grep/minigrep/src/grep.c",
+  "file": "/home/zy/CLearning/2026-03-06/task1_day19_mini_grep/minigrep/src/grep.c",
+  "output": "CMakeFiles/mini_grep.dir/src/grep.c.o"
+}
+]
