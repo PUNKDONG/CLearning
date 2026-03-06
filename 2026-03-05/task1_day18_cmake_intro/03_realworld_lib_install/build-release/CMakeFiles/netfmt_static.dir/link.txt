@@ -1,0 +1,2 @@
+/usr/bin/ar qc libnetfmt_static.a CMakeFiles/netfmt_static.dir/src/netfmt.c.o
+/usr/bin/ranlib libnetfmt_static.a

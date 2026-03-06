@@ -1,0 +1,9 @@
+/home/zy/CLearning/2026-03-05/task1_day18_cmake_intro/03_realworld_lib_install/build-debug/CMakeFiles/netfmt_shared.dir
+/home/zy/CLearning/2026-03-05/task1_day18_cmake_intro/03_realworld_lib_install/build-debug/CMakeFiles/netfmt_static.dir
+/home/zy/CLearning/2026-03-05/task1_day18_cmake_intro/03_realworld_lib_install/build-debug/CMakeFiles/net_tool.dir
+/home/zy/CLearning/2026-03-05/task1_day18_cmake_intro/03_realworld_lib_install/build-debug/CMakeFiles/edit_cache.dir
+/home/zy/CLearning/2026-03-05/task1_day18_cmake_intro/03_realworld_lib_install/build-debug/CMakeFiles/rebuild_cache.dir
+/home/zy/CLearning/2026-03-05/task1_day18_cmake_intro/03_realworld_lib_install/build-debug/CMakeFiles/list_install_components.dir
+/home/zy/CLearning/2026-03-05/task1_day18_cmake_intro/03_realworld_lib_install/build-debug/CMakeFiles/install.dir
+/home/zy/CLearning/2026-03-05/task1_day18_cmake_intro/03_realworld_lib_install/build-debug/CMakeFiles/install/local.dir
+/home/zy/CLearning/2026-03-05/task1_day18_cmake_intro/03_realworld_lib_install/build-debug/CMakeFiles/install/strip.dir

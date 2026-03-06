@@ -183,6 +183,11 @@ def leetcode_day_num(day_num: int) -> int:
     return LEETCODE_DAY_OFFSET + day_num
 
 
+def network_day_num_for_date(date_str: str) -> int:
+    # 稳定ID：200000 + YYYYMMDD（例如 2026-03-01 -> 20462901）
+    return NETWORK_DAY_OFFSET + int(date_str.replace("-", ""))
+
+
 def task_kind(day_num: int) -> str:
     if day_num >= NETWORK_DAY_OFFSET:
         return "network"
@@ -225,6 +230,29 @@ def day_label(day_num: int) -> str:
     return f"Day{day_num}"
 
 
+def network_planned_date_from_day_num(day_num: int) -> str | None:
+    """
+    新版计网任务 day_num = 200000 + YYYYMMDD。
+    全局统计按该原始日期分桶，避免受顺延后的 planned_date 干扰。
+    """
+    if day_num < NETWORK_DAY_OFFSET:
+        return None
+    val = day_num - NETWORK_DAY_OFFSET
+    if val < 10000000:
+        # 旧版编号（按 Day 序号）不解码，回退用 planned_date
+        return None
+    s = str(val)
+    if len(s) != 8:
+        return None
+    y, m, d = s[:4], s[4:6], s[6:8]
+    date_str = f"{y}-{m}-{d}"
+    try:
+        dt.date.fromisoformat(date_str)
+    except ValueError:
+        return None
+    return date_str
+
+
 def china_now() -> dt.datetime:
     return dt.datetime.now(CHINA_TZ)
 
@@ -242,6 +270,13 @@ def ensure_ready() -> None:
     ensure_daily_network_tasks()
 
 
+def get_plan_tasks() -> list[PlanTask]:
+    if not PLAN_PATH.exists():
+        return []
+    text = PLAN_PATH.read_text(encoding="utf-8")
+    return parse_plan_tasks(text)
+
+
 def ensure_daily_fitness_tasks() -> None:
     """
     保障“从今天开始每天一条独立健身任务”：
@@ -249,8 +284,6 @@ def ensure_daily_fitness_tasks() -> None:
     - 为未来学习任务补齐同日健身任务（day_num 使用负号区分）。
     """
     conn = get_conn()
-    today_str = china_today().isoformat()
-
     # 清理旧格式："...；健身任务：若干健身动作25*4"
     conn.execute(
         """
@@ -261,17 +294,14 @@ def ensure_daily_fitness_tasks() -> None:
         ("；" + FITNESS_TITLE, "；" + FITNESS_TITLE),
     )
 
-    study_rows = conn.execute(
-        """
-        SELECT day_num, planned_date
-        FROM tasks
-        WHERE day_num > 0
-          AND day_num < ?
-          AND date(planned_date) >= date(?)
-        ORDER BY day_num ASC
-        """,
-        (LEETCODE_DAY_OFFSET, today_str),
-    ).fetchall()
+    # 健身任务按“日历日期”固定，不跟随学习任务顺延。
+    # 以计划文件中的 Day 日期作为健身任务的目标日期。
+    plan_tasks = get_plan_tasks()
+    study_rows = [
+        {"day_num": t.day_num, "planned_date": t.planned_date}
+        for t in plan_tasks
+        if t.day_num > 0 and t.day_num < LEETCODE_DAY_OFFSET
+    ]
     fitness_rows = conn.execute(
         """
         SELECT day_num, planned_date, status
@@ -322,26 +352,20 @@ def ensure_daily_leetcode_tasks() -> None:
     - 未完成行会与对应学习任务日期对齐。
     """
     conn = get_conn()
-    today_str = china_today().isoformat()
-
-    study_rows = conn.execute(
-        """
-        SELECT day_num, planned_date
-        FROM tasks
-        WHERE day_num > 0
-          AND day_num < ?
-          AND date(planned_date) >= date(?)
-        ORDER BY day_num ASC
-        """,
-        (LEETCODE_DAY_OFFSET, today_str),
-    ).fetchall()
+    # LeetCode 任务按“日历日期”固定，不跟随学习任务顺延。
+    plan_tasks = get_plan_tasks()
+    study_rows = [
+        {"day_num": t.day_num, "planned_date": t.planned_date}
+        for t in plan_tasks
+        if t.day_num > 0 and t.day_num < LEETCODE_DAY_OFFSET
+    ]
     lc_rows = conn.execute(
         """
         SELECT day_num, planned_date, status
         FROM tasks
-        WHERE day_num >= ?
+        WHERE day_num >= ? AND day_num < ?
         """,
-        (LEETCODE_DAY_OFFSET,),
+        (LEETCODE_DAY_OFFSET, NETWORK_DAY_OFFSET),
     ).fetchall()
     lc_map = {int(r["day_num"]) - LEETCODE_DAY_OFFSET: r for r in lc_rows}
 
@@ -422,8 +446,9 @@ def parse_network_tasks(text: str, year: int) -> dict[str, str]:
 
 def ensure_daily_network_tasks() -> None:
     """
-    按 net.md 为每天生成“计网任务”独立行：
-    - 与学习 Day 行按同一 base day 关联；
+    按 net.md + Day 编号生成“计网任务”独立行：
+    - 计网任务跟随学习任务顺延（日期跟学习 Day 对齐）；
+    - 计网标题按 Day 固定，不随当前日期取网课文本；
     - 仅对未完成项同步日期/标题；
     - 不动已完成历史记录。
     """
@@ -431,22 +456,31 @@ def ensure_daily_network_tasks() -> None:
         return
 
     conn = get_conn()
-    today_str = china_today().isoformat()
-    today_year = china_today().year
+    today = china_today()
+    today_str = today.isoformat()
+    today_year = today.year
     net_text = NET_PLAN_PATH.read_text(encoding="utf-8")
     date_to_title = parse_network_tasks(net_text, today_year)
 
-    study_rows = conn.execute(
+    # 兼容迁移：旧版本“按学习 Day 编号”建的计网任务（day_num 较小）。
+    # 新版本 day_num = 200000 + YYYYMMDD，显著大于 300000。
+    legacy_rows = conn.execute(
         """
-        SELECT day_num, planned_date
+        SELECT day_num, title, status, completed_at
         FROM tasks
-        WHERE day_num > 0
+        WHERE day_num >= ?
           AND day_num < ?
-          AND date(planned_date) >= date(?)
-        ORDER BY day_num ASC
         """,
-        (LEETCODE_DAY_OFFSET, today_str),
+        (NETWORK_DAY_OFFSET, NETWORK_DAY_OFFSET + 100000),
     ).fetchall()
+    legacy_completed_by_title: dict[str, str] = {}
+    for r in legacy_rows:
+        if r["status"] == "completed" and r["completed_at"]:
+            # 同标题只保留最早完成时间
+            old = legacy_completed_by_title.get(r["title"])
+            if old is None or r["completed_at"] < old:
+                legacy_completed_by_title[r["title"]] = r["completed_at"]
+
     net_rows = conn.execute(
         """
         SELECT day_num, planned_date, status
@@ -455,30 +489,21 @@ def ensure_daily_network_tasks() -> None:
         """,
         (NETWORK_DAY_OFFSET,),
     ).fetchall()
-    net_map = {int(r["day_num"]) - NETWORK_DAY_OFFSET: r for r in net_rows}
-
-    valid_days: set[int] = set()
-    for row in study_rows:
-        day_num = int(row["day_num"])
-        study_date = row["planned_date"]
-        network_title = date_to_title.get(study_date)
-        net_day_num = NETWORK_DAY_OFFSET + day_num
-        existing = net_map.get(day_num)
-
-        if not network_title:
-            if existing and existing["status"] == "pending":
-                conn.execute("DELETE FROM tasks WHERE day_num = ?", (net_day_num,))
-            continue
-
-        valid_days.add(day_num)
+    net_map = {int(r["day_num"]): r for r in net_rows}
+    valid_day_nums: set[int] = set()
+    for date_key, network_title in sorted(date_to_title.items()):
+        net_day_num = network_day_num_for_date(date_key)
+        valid_day_nums.add(net_day_num)
         full_title = f"{NETWORK_TITLE_PREFIX}{network_title}"
+        existing = net_map.get(net_day_num)
+
         if existing is None:
             conn.execute(
                 """
                 INSERT INTO tasks (day_num, stage, planned_date, title, status)
                 VALUES (?, ?, ?, ?, 'pending')
                 """,
-                (net_day_num, NETWORK_STAGE, study_date, full_title),
+                (net_day_num, NETWORK_STAGE, date_key, full_title),
             )
             continue
 
@@ -490,18 +515,54 @@ def ensure_daily_network_tasks() -> None:
             """,
             (NETWORK_STAGE, full_title, net_day_num),
         )
-        if existing["status"] == "pending" and existing["planned_date"] != study_date:
-            conn.execute(
-                "UPDATE tasks SET planned_date = ? WHERE day_num = ?",
-                (study_date, net_day_num),
-            )
 
-    # 清理无效且未完成的计网任务（例如计划日期不在 net.md 覆盖范围）。
+    # 迁移旧完成记录到新行（按标题匹配）。
+    for title, completed_at in legacy_completed_by_title.items():
+        conn.execute(
+            """
+            UPDATE tasks
+            SET status = 'completed', completed_at = ?
+            WHERE day_num >= ?
+              AND day_num NOT BETWEEN ? AND ?
+              AND status = 'pending'
+              AND title = ?
+            """,
+            (
+                completed_at,
+                NETWORK_DAY_OFFSET,
+                NETWORK_DAY_OFFSET,
+                NETWORK_DAY_OFFSET + 100000 - 1,
+                title,
+            ),
+        )
+
+    # 清理旧格式计网任务，避免重复显示/重复统计。
+    conn.execute(
+        """
+        DELETE FROM tasks
+        WHERE day_num >= ?
+          AND day_num < ?
+        """,
+        (NETWORK_DAY_OFFSET, NETWORK_DAY_OFFSET + 100000),
+    )
+
+    # 删除无效且未完成的计网任务（net.md 已不存在对应日期）
     for row in net_rows:
         row_day_num = int(row["day_num"])
-        base_day = row_day_num - NETWORK_DAY_OFFSET
-        if base_day not in valid_days and row["status"] == "pending":
+        if row_day_num not in valid_day_nums and row["status"] == "pending":
             conn.execute("DELETE FROM tasks WHERE day_num = ?", (row_day_num,))
+
+    # 把历史未完成计网任务累计到今天（确保今天能看到 backlog）。
+    conn.execute(
+        """
+        UPDATE tasks
+        SET planned_date = ?
+        WHERE status = 'pending'
+          AND day_num >= ?
+          AND date(planned_date) < date(?)
+        """,
+        (today_str, NETWORK_DAY_OFFSET, today_str),
+    )
 
     conn.commit()
     conn.close()
@@ -572,9 +633,14 @@ def run_auto_rollover_if_needed() -> tuple[int, int]:
             """
             SELECT COUNT(*) AS c
             FROM tasks
-            WHERE status = 'pending' AND date(planned_date) = date(?)
+            WHERE status = 'pending'
+              AND (
+                    (day_num > 0 AND day_num < ?)
+                 OR day_num >= ?
+              )
+              AND date(planned_date) = date(?)
             """,
-            (current_str,),
+            (LEETCODE_DAY_OFFSET, NETWORK_DAY_OFFSET, current_str),
         ).fetchone()["c"]
 
         if affected > 0:
@@ -582,9 +648,14 @@ def run_auto_rollover_if_needed() -> tuple[int, int]:
                 """
                 UPDATE tasks
                 SET planned_date = date(planned_date, '+1 day')
-                WHERE status = 'pending' AND date(planned_date) = date(?)
+                WHERE status = 'pending'
+                  AND (
+                        (day_num > 0 AND day_num < ?)
+                     OR day_num >= ?
+                  )
+                  AND date(planned_date) = date(?)
                 """,
-                (current_str,),
+                (LEETCODE_DAY_OFFSET, NETWORK_DAY_OFFSET, current_str),
             )
             conn.execute(
                 """
@@ -1140,18 +1211,28 @@ def leave():
         """
         SELECT COUNT(*) AS c
         FROM tasks
-        WHERE status = 'pending' AND date(planned_date) >= date(?)
+        WHERE status = 'pending'
+          AND (
+                (day_num > 0 AND day_num < ?)
+             OR day_num >= ?
+          )
+          AND date(planned_date) >= date(?)
         """,
-        (leave_date,),
+        (LEETCODE_DAY_OFFSET, NETWORK_DAY_OFFSET, leave_date),
     ).fetchone()["c"]
 
     conn.execute(
         """
         UPDATE tasks
         SET planned_date = date(planned_date, '+1 day')
-        WHERE status = 'pending' AND date(planned_date) >= date(?)
+        WHERE status = 'pending'
+          AND (
+                (day_num > 0 AND day_num < ?)
+             OR day_num >= ?
+          )
+          AND date(planned_date) >= date(?)
         """,
-        (leave_date,),
+        (LEETCODE_DAY_OFFSET, NETWORK_DAY_OFFSET, leave_date),
     )
     conn.execute(
         """
@@ -1183,18 +1264,28 @@ def rollover_day():
         """
         SELECT COUNT(*) AS c
         FROM tasks
-        WHERE status = 'pending' AND date(planned_date) = date(?)
+        WHERE status = 'pending'
+          AND (
+                (day_num > 0 AND day_num < ?)
+             OR day_num >= ?
+          )
+          AND date(planned_date) = date(?)
         """,
-        (view_date_str,),
+        (LEETCODE_DAY_OFFSET, NETWORK_DAY_OFFSET, view_date_str),
     ).fetchone()["c"]
 
     conn.execute(
         """
         UPDATE tasks
         SET planned_date = date(planned_date, '+1 day')
-        WHERE status = 'pending' AND date(planned_date) = date(?)
+        WHERE status = 'pending'
+          AND (
+                (day_num > 0 AND day_num < ?)
+             OR day_num >= ?
+          )
+          AND date(planned_date) = date(?)
         """,
-        (view_date_str,),
+        (LEETCODE_DAY_OFFSET, NETWORK_DAY_OFFSET, view_date_str),
     )
     conn.execute(
         """
@@ -1428,6 +1519,10 @@ def overview():
 
     for t in tasks:
         planned_date = t["planned_date"]
+        if task_kind(t["day_num"]) == "network":
+            decoded = network_planned_date_from_day_num(t["day_num"])
+            if decoded:
+                planned_date = decoded
         all_dates.add(planned_date)
         planned_count_by_date[planned_date] = planned_count_by_date.get(planned_date, 0) + 1
         planned_tasks_by_date.setdefault(planned_date, []).append(t)

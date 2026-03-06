@@ -1,0 +1,2 @@
+/usr/bin/ar qc libmathx.a CMakeFiles/mathx.dir/src/mathx.c.o
+/usr/bin/ranlib libmathx.a

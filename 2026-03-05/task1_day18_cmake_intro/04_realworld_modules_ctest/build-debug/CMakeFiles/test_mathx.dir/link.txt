@@ -1,0 +1,1 @@
+/usr/bin/cc -g CMakeFiles/test_mathx.dir/tests/test_mathx.c.o -o test_mathx  libmathx.a 

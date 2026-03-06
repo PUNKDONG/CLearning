@@ -1,0 +1,8 @@
+/tmp/netfmt-install/bin/net_tool
+/tmp/netfmt-install/lib/libnetfmt_shared.so
+/tmp/netfmt-install/lib/libnetfmt_static.a
+/tmp/netfmt-install/include/netfmt.h
+/tmp/netfmt-install/lib/cmake/netfmt/netfmtTargets.cmake
+/tmp/netfmt-install/lib/cmake/netfmt/netfmtTargets-debug.cmake
+/tmp/netfmt-install/lib/cmake/netfmt/netfmtConfig.cmake
+/tmp/netfmt-install/lib/cmake/netfmt/netfmtConfigVersion.cmake

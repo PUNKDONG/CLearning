@@ -1,0 +1,2 @@
+/usr/bin/ar qc libtextx.a CMakeFiles/textx.dir/src/textx.c.o
+/usr/bin/ranlib libtextx.a

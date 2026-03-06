@@ -1,0 +1,1 @@
+/usr/bin/cc -g CMakeFiles/test_textx.dir/tests/test_textx.c.o -o test_textx  libtextx.a 

@@ -1,0 +1,3 @@
+/home/zy/CLearning/2026-03-05/task1_day18_cmake_intro/03_realworld_lib_install/consumer/build/CMakeFiles/consumer.dir
+/home/zy/CLearning/2026-03-05/task1_day18_cmake_intro/03_realworld_lib_install/consumer/build/CMakeFiles/edit_cache.dir
+/home/zy/CLearning/2026-03-05/task1_day18_cmake_intro/03_realworld_lib_install/consumer/build/CMakeFiles/rebuild_cache.dir

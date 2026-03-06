@@ -1,0 +1,1 @@
+/usr/bin/cc CMakeFiles/consumer.dir/src/main.c.o -o consumer  /tmp/netfmt-install/lib/libnetfmt_static.a 

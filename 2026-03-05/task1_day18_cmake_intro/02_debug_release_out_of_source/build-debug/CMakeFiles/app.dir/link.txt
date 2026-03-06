@@ -1,0 +1,1 @@
+/usr/bin/cc -g CMakeFiles/app.dir/src/main.c.o CMakeFiles/app.dir/src/math_utils.c.o -o app 

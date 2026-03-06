@@ -1,0 +1,3 @@
+/home/zy/CLearning/2026-03-05/task1_day18_cmake_intro/01_min_cmake_multifile/build/CMakeFiles/app.dir
+/home/zy/CLearning/2026-03-05/task1_day18_cmake_intro/01_min_cmake_multifile/build/CMakeFiles/edit_cache.dir
+/home/zy/CLearning/2026-03-05/task1_day18_cmake_intro/01_min_cmake_multifile/build/CMakeFiles/rebuild_cache.dir

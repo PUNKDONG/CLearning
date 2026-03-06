@@ -1,0 +1,8 @@
+/home/zy/CLearning/2026-03-05/task1_day18_cmake_intro/04_realworld_modules_ctest/build-debug/CMakeFiles/mathx.dir
+/home/zy/CLearning/2026-03-05/task1_day18_cmake_intro/04_realworld_modules_ctest/build-debug/CMakeFiles/textx.dir
+/home/zy/CLearning/2026-03-05/task1_day18_cmake_intro/04_realworld_modules_ctest/build-debug/CMakeFiles/app.dir
+/home/zy/CLearning/2026-03-05/task1_day18_cmake_intro/04_realworld_modules_ctest/build-debug/CMakeFiles/test_mathx.dir
+/home/zy/CLearning/2026-03-05/task1_day18_cmake_intro/04_realworld_modules_ctest/build-debug/CMakeFiles/test_textx.dir
+/home/zy/CLearning/2026-03-05/task1_day18_cmake_intro/04_realworld_modules_ctest/build-debug/CMakeFiles/test.dir
+/home/zy/CLearning/2026-03-05/task1_day18_cmake_intro/04_realworld_modules_ctest/build-debug/CMakeFiles/edit_cache.dir
+/home/zy/CLearning/2026-03-05/task1_day18_cmake_intro/04_realworld_modules_ctest/build-debug/CMakeFiles/rebuild_cache.dir

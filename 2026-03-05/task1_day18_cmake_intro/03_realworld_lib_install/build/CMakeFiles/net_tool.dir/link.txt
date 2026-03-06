@@ -1,0 +1,1 @@
+/usr/bin/cc CMakeFiles/net_tool.dir/src/main.c.o -o net_tool  libnetfmt_static.a 

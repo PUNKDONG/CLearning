@@ -1,0 +1,1 @@
+/usr/bin/cc -fPIC -g -shared -Wl,-soname,libnetfmt_shared.so -o libnetfmt_shared.so CMakeFiles/netfmt_shared.dir/src/netfmt.c.o 

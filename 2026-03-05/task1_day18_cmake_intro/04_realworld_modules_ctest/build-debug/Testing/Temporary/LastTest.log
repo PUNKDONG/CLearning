@@ -1,0 +1,34 @@
+Start testing: Mar 05 22:09 CST
+----------------------------------------------------------
+1/2 Testing: test_mathx
+1/2 Test: test_mathx
+Command: "/home/zy/CLearning/2026-03-05/task1_day18_cmake_intro/04_realworld_modules_ctest/build-debug/test_mathx"
+Directory: /home/zy/CLearning/2026-03-05/task1_day18_cmake_intro/04_realworld_modules_ctest/build-debug
+"test_mathx" start time: Mar 05 22:09 CST
+Output:
+----------------------------------------------------------
+test_mathx passed
+<end of output>
+Test time =   0.00 sec
+----------------------------------------------------------
+Test Passed.
+"test_mathx" end time: Mar 05 22:09 CST
+"test_mathx" time elapsed: 00:00:00
+----------------------------------------------------------
+
+2/2 Testing: test_textx
+2/2 Test: test_textx
+Command: "/home/zy/CLearning/2026-03-05/task1_day18_cmake_intro/04_realworld_modules_ctest/build-debug/test_textx"
+Directory: /home/zy/CLearning/2026-03-05/task1_day18_cmake_intro/04_realworld_modules_ctest/build-debug
+"test_textx" start time: Mar 05 22:09 CST
+Output:
+----------------------------------------------------------
+<end of output>
+Test time =   0.00 sec
+----------------------------------------------------------
+Test Passed.
+"test_textx" end time: Mar 05 22:09 CST
+"test_textx" time elapsed: 00:00:00
+----------------------------------------------------------
+
+End testing: Mar 05 22:09 CST
