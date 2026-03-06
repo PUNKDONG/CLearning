@@ -1,2 +1,0 @@
-/usr/bin/ar qc libminigrep_core.a CMakeFiles/minigrep_core.dir/src/args.c.o CMakeFiles/minigrep_core.dir/src/error.c.o CMakeFiles/minigrep_core.dir/src/grep.c.o CMakeFiles/minigrep_core.dir/src/logger.c.o CMakeFiles/minigrep_core.dir/src/matcher.c.o
-/usr/bin/ranlib libminigrep_core.a

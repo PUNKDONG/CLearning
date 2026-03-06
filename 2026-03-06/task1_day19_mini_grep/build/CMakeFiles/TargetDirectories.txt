@@ -1,5 +1,0 @@
-/home/zy/CLearning/2026-03-06/task1_day19_mini_grep/build/CMakeFiles/minigrep_core.dir
-/home/zy/CLearning/2026-03-06/task1_day19_mini_grep/build/CMakeFiles/mini_grep.dir
-/home/zy/CLearning/2026-03-06/task1_day19_mini_grep/build/CMakeFiles/test.dir
-/home/zy/CLearning/2026-03-06/task1_day19_mini_grep/build/CMakeFiles/edit_cache.dir
-/home/zy/CLearning/2026-03-06/task1_day19_mini_grep/build/CMakeFiles/rebuild_cache.dir
