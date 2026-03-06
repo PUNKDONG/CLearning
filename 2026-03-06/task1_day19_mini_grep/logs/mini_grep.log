@@ -1,0 +1,18 @@
+[2026-03-06 16:51:51] [INFO] start: keyword='hello' file='/home/zy/CLearning/2026-03-06/task1_day19_mini_grep/tests/data/normal.txt' ignore_case=0 show_line_number=0
+[2026-03-06 16:51:51] [INFO] done: total_lines=5 matched_lines=2 truncated_lines=0
+[2026-03-06 16:51:51] [INFO] start: keyword='hello' file='/home/zy/CLearning/2026-03-06/task1_day19_mini_grep/tests/data/normal.txt' ignore_case=1 show_line_number=0
+[2026-03-06 16:51:51] [INFO] done: total_lines=5 matched_lines=3 truncated_lines=0
+[2026-03-06 16:51:51] [INFO] start: keyword='hello' file='/home/zy/CLearning/2026-03-06/task1_day19_mini_grep/tests/data/normal.txt' ignore_case=0 show_line_number=1
+[2026-03-06 16:51:51] [INFO] done: total_lines=5 matched_lines=2 truncated_lines=0
+[2026-03-06 16:51:51] [INFO] start: keyword='hello' file='/home/zy/CLearning/2026-03-06/task1_day19_mini_grep/tests/data/not_exists.txt' ignore_case=0 show_line_number=0
+[2026-03-06 16:51:51] [ERROR] run_grep failed: failed to open file
+[2026-03-06 16:51:51] [ERROR] arg parse failed: missing or extra positional arguments (invalid arguments)
+[2026-03-06 16:51:51] [ERROR] arg parse failed: unknown option (invalid arguments)
+[2026-03-06 16:51:51] [INFO] start: keyword='hello' file='/home/zy/CLearning/2026-03-06/task1_day19_mini_grep/tests/data/empty.txt' ignore_case=0 show_line_number=0
+[2026-03-06 16:51:51] [INFO] done: total_lines=0 matched_lines=0 truncated_lines=0
+[2026-03-06 16:51:51] [INFO] start: keyword='very_long' file='/home/zy/CLearning/2026-03-06/task1_day19_mini_grep/tests/data/long_line.txt' ignore_case=1 show_line_number=0
+[2026-03-06 16:51:51] [INFO] done: total_lines=2 matched_lines=1 truncated_lines=0
+[2026-03-06 16:51:51] [INFO] start: keyword='grep' file='/home/zy/CLearning/2026-03-06/task1_day19_mini_grep/tests/data/normal.txt' ignore_case=1 show_line_number=0
+[2026-03-06 16:51:51] [INFO] done: total_lines=5 matched_lines=2 truncated_lines=0
+[2026-03-06 16:51:51] [INFO] start: keyword='xyz_not_found' file='/home/zy/CLearning/2026-03-06/task1_day19_mini_grep/tests/data/normal.txt' ignore_case=0 show_line_number=0
+[2026-03-06 16:51:51] [INFO] done: total_lines=5 matched_lines=0 truncated_lines=0
