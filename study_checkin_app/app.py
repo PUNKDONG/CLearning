@@ -1503,6 +1503,8 @@ def overview():
         LIMIT 30
         """
     ).fetchall()
+    # 对齐日视图的学习任务映射规则（今天及未来日期会按 pending 序列映射 task_date）
+    anchor_date = pick_anchor_task_date(conn, effective_today)
     conn.close()
 
     total = len(tasks)
@@ -1510,68 +1512,102 @@ def overview():
     pending = total - completed
     progress = round((completed / total) * 100, 1) if total else 0
 
-    # 全局页按“完成日期”展示：
-    # 完成/总数 = 当天实际完成数 / 当天计划任务数。
-    planned_count_by_date: dict[str, int] = {}
-    planned_tasks_by_date: dict[str, list[sqlite3.Row]] = {}
+    # 全局页按“日视图同口径”统计：
+    # - 学习任务：按映射后的 task_date 计算“当天应做”；
+    # - 其他任务（健身/LeetCode/计网）：按 display_date（日历日期）计算“当天应做”；
+    # - 完成数：按 completed_at 所在日期归属。
+    study_tasks_by_date: dict[str, list[sqlite3.Row]] = {}
+    non_study_tasks_by_date: dict[str, list[sqlite3.Row]] = {}
     completed_tasks_by_date: dict[str, list[sqlite3.Row]] = {}
-    all_dates: set[str] = set()
+    all_dates: set[dt.date] = {effective_today}
 
     for t in tasks:
-        planned_date = t["planned_date"]
-        if task_kind(t["day_num"]) == "network":
-            decoded = network_planned_date_from_day_num(t["day_num"])
-            if decoded:
-                planned_date = decoded
-        all_dates.add(planned_date)
-        planned_count_by_date[planned_date] = planned_count_by_date.get(planned_date, 0) + 1
-        planned_tasks_by_date.setdefault(planned_date, []).append(t)
+        try:
+            planned_d = dt.date.fromisoformat(t["planned_date"])
+        except ValueError:
+            continue
+        all_dates.add(planned_d)
+        if 0 < t["day_num"] < LEETCODE_DAY_OFFSET:
+            study_tasks_by_date.setdefault(t["planned_date"], []).append(t)
+        else:
+            non_study_tasks_by_date.setdefault(t["planned_date"], []).append(t)
+
         if t["status"] == "completed" and t["completed_at"]:
-            completed_date = t["completed_at"][:10]
-            all_dates.add(completed_date)
-            completed_tasks_by_date.setdefault(completed_date, []).append(t)
+            completed_date_str = t["completed_at"][:10]
+            try:
+                completed_d = dt.date.fromisoformat(completed_date_str)
+            except ValueError:
+                continue
+            all_dates.add(completed_d)
+            completed_tasks_by_date.setdefault(completed_date_str, []).append(t)
 
     date_details: list[dict[str, object]] = []
-    for date_key in sorted(all_dates):
-        day_completed_tasks = completed_tasks_by_date.get(date_key, [])
-        day_completed_tasks = sorted(
-            day_completed_tasks,
-            key=lambda t: (
-                t["completed_at"] or "",
-                day_base_num(t["day_num"]),
-                task_sort_order(t["day_num"]),
-            ),
-        )
-        total_count = planned_count_by_date.get(date_key, 0)
-        completed_count = len(day_completed_tasks)
-        rate = round((completed_count / total_count) * 100, 1) if total_count else 0
-        planned_day_tasks = sorted(
-            planned_tasks_by_date.get(date_key, []),
-            key=lambda t: (day_base_num(t["day_num"]), task_sort_order(t["day_num"])),
-        )
-        date_details.append(
-            {
-                "date_key": date_key,
-                "total_count": total_count,
-                "completed_count": completed_count,
-                "rate": rate,
-                "completed_tasks": [
-                    {
-                        "day_num": t["day_num"],
-                        "title": t["title"],
-                        "completed_at": t["completed_at"],
-                    }
-                    for t in day_completed_tasks
-                ],
-                "planned_tasks": [
-                    {
-                        "day_num": t["day_num"],
-                        "title": t["title"],
-                    }
-                    for t in planned_day_tasks
-                ],
-            }
-        )
+    if all_dates:
+        start_date = min(all_dates)
+        end_date = max(all_dates)
+    else:
+        start_date = effective_today
+        end_date = effective_today
+
+    current = start_date
+    map_conn = get_conn()
+    try:
+        while current <= end_date:
+            display_date = current
+            if display_date < effective_today:
+                task_date = display_date
+            else:
+                # 复用日视图映射规则，确保“应该做的任务”一致。
+                task_date = map_display_to_task_date(
+                    map_conn, effective_today, display_date, anchor_date
+                )
+
+            display_date_key = display_date.isoformat()
+            task_date_key = task_date.isoformat()
+            day_study_tasks = study_tasks_by_date.get(task_date_key, [])
+            day_non_study_tasks = non_study_tasks_by_date.get(display_date_key, [])
+            day_planned_tasks = sorted(
+                [*day_study_tasks, *day_non_study_tasks],
+                key=lambda t: (day_base_num(t["day_num"]), task_sort_order(t["day_num"])),
+            )
+            day_completed_tasks = sorted(
+                completed_tasks_by_date.get(display_date_key, []),
+                key=lambda t: (
+                    t["completed_at"] or "",
+                    day_base_num(t["day_num"]),
+                    task_sort_order(t["day_num"]),
+                ),
+            )
+            total_count = len(day_planned_tasks)
+            completed_count = len(day_completed_tasks)
+            rate = round((completed_count / total_count) * 100, 1) if total_count else 0
+
+            date_details.append(
+                {
+                    "date_key": display_date_key,
+                    "total_count": total_count,
+                    "completed_count": completed_count,
+                    "rate": rate,
+                    "completed_tasks": [
+                        {
+                            "day_num": t["day_num"],
+                            "title": t["title"],
+                            "completed_at": t["completed_at"],
+                        }
+                        for t in day_completed_tasks
+                    ],
+                    "planned_tasks": [
+                        {
+                            "day_num": t["day_num"],
+                            "title": t["title"],
+                        }
+                        for t in day_planned_tasks
+                    ],
+                }
+            )
+            current += dt.timedelta(days=1)
+    finally:
+        map_conn.close()
 
     return render_template(
         "overview.html",

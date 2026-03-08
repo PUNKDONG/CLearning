@@ -4,35 +4,27 @@
 
 char*** groupAnagrams(char** strs, int strsSize,
                       int* returnSize, int** returnColumnSizes) {
-    HMmap *map;
-    char ***ans;
-    Node *cur;
-    int i, j = 0;
+   //首先将所有的char* str数组存到这个map中
+   HMmap*map=hm_create(strsSize);
+   for(int i=0;i<strsSize;i++){
+    hm_put(map,strs[i]);
+   }
+   //然后就是遍历map的每个桶,然后每个桶中的所有的*node都遍历,都是一个数组
+   char***ans=(char***)malloc(sizeof(char**)*strsSize);
+       *returnColumnSizes = (int *)malloc(sizeof(int) * strsSize);
+   int j=0;
+   for(int i=0;i<map->cap;i++){
+     Node*cur=map->buckets[i];
+     while(cur!=NULL){
+        ans[j]=cur->list.items;
+       (*returnColumnSizes)[j] =cur->list.size;
+        j++;
+        cur=cur->next;
+     }
+   }
+   *returnSize=j;
+   return ans;
 
-    *returnSize = 0;
-    *returnColumnSizes = NULL;
-    if (strsSize == 0) return NULL;
-
-    map = hm_create(strsSize * 2 + 1);
-    if (map == NULL) return NULL;
-
-    for (i = 0; i < strsSize; i++) {
-        if (hm_put(map, strs[i]) != 0) return NULL;
-    }
-
-    ans = (char ***)malloc(sizeof(char **) * strsSize);
-    *returnColumnSizes = (int *)malloc(sizeof(int) * strsSize);
-    if (ans == NULL || *returnColumnSizes == NULL) return NULL;
-
-    for (i = 0; i < map->cap; i++) {
-        for (cur = map->buckets[i]; cur != NULL; cur = cur->next) {
-            ans[j] = cur->list.items;
-            (*returnColumnSizes)[j++] = cur->list.size;
-        }
-    }
-
-    *returnSize = j;
-    return ans;
 }
 
 #ifdef LOCAL_TEST
