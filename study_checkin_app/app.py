@@ -230,6 +230,59 @@ def day_label(day_num: int) -> str:
     return f"Day{day_num}"
 
 
+def completed_date_str(task: sqlite3.Row | dict[str, object]) -> str | None:
+    completed_at = task["completed_at"]
+    if not completed_at:
+        return None
+    return str(completed_at)[:10]
+
+
+def display_task(
+    task: sqlite3.Row | dict[str, object],
+    *,
+    status: str | None = None,
+    completed_at: str | None = None,
+) -> dict[str, object]:
+    row = dict(task)
+    if status is not None:
+        row["status"] = status
+    if completed_at is not None or status == "pending":
+        row["completed_at"] = completed_at
+    return row
+
+
+def build_flexible_day_tasks(
+    tasks: list[sqlite3.Row], kind: str, display_date: dt.date
+) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
+    display_date_str = display_date.isoformat()
+    kind_tasks = sorted(
+        [t for t in tasks if task_kind(t["day_num"]) == kind],
+        key=lambda t: (day_base_num(t["day_num"]), t["day_num"]),
+    )
+    slot_count = sum(1 for t in kind_tasks if t["planned_date"] == display_date_str)
+    remaining = [
+        t
+        for t in kind_tasks
+        if (completed_date_str(t) is None or completed_date_str(t) >= display_date_str)
+    ]
+    queue_for_day = remaining[:slot_count]
+
+    pending_tasks: list[dict[str, object]] = []
+    for t in queue_for_day:
+        completed_date = completed_date_str(t)
+        if completed_date == display_date_str:
+            continue
+        if completed_date is None or completed_date > display_date_str:
+            pending_tasks.append(display_task(t, status="pending", completed_at=None))
+
+    completed_tasks = [
+        display_task(t, status="completed", completed_at=t["completed_at"])
+        for t in kind_tasks
+        if completed_date_str(t) == display_date_str
+    ]
+    return pending_tasks, completed_tasks
+
+
 def network_planned_date_from_day_num(day_num: int) -> str | None:
     """
     新版计网任务 day_num = 200000 + YYYYMMDD。
@@ -744,11 +797,44 @@ def pick_default_view_date(conn: sqlite3.Connection, today: dt.date) -> dt.date:
 def pick_anchor_task_date(conn: sqlite3.Connection, today: dt.date) -> dt.date:
     """
     计算“今天视角”的任务锚点日期：
-    - 若有逾期/今天待完成任务，优先从最早 pending 开始；
+    - 若今天或更早仍有未完成任务，优先停留在对应日期，避免首页跳到未来；
     - 若今天已超前完成未来任务，锚点保持在今天完成过的最早任务日期，
       避免页面在同一天内跳来跳去，导致未来日期撤销按钮消失。
     """
     today_str = today.isoformat()
+    pending_due_study_row = conn.execute(
+        """
+        SELECT planned_date
+        FROM tasks
+        WHERE status = 'pending'
+          AND day_num > 0
+          AND day_num < ?
+          AND date(planned_date) <= date(?)
+        ORDER BY date(planned_date) ASC, day_num ASC
+        LIMIT 1
+        """,
+        (LEETCODE_DAY_OFFSET, today_str),
+    ).fetchone()
+    if pending_due_study_row:
+        try:
+            return dt.date.fromisoformat(pending_due_study_row["planned_date"])
+        except ValueError:
+            pass
+
+    pending_due_non_study_row = conn.execute(
+        """
+        SELECT 1
+        FROM tasks
+        WHERE status = 'pending'
+          AND (day_num < 0 OR day_num >= ?)
+          AND date(planned_date) <= date(?)
+        LIMIT 1
+        """,
+        (LEETCODE_DAY_OFFSET, today_str),
+    ).fetchone()
+    if pending_due_non_study_row:
+        return today
+
     pending_study_row = conn.execute(
         """
         SELECT planned_date
@@ -788,6 +874,17 @@ def pick_anchor_task_date(conn: sqlite3.Connection, today: dt.date) -> dt.date:
         """,
         (today_str,),
     ).fetchone()
+    completed_future_today = conn.execute(
+        """
+        SELECT COUNT(*) AS c
+        FROM tasks
+        WHERE status = 'completed'
+          AND completed_at IS NOT NULL
+          AND date(completed_at) = date(?)
+          AND date(planned_date) > date(?)
+        """,
+        (today_str, today_str),
+    ).fetchone()["c"]
 
     pending_date = None
     if pending_row:
@@ -805,7 +902,15 @@ def pick_anchor_task_date(conn: sqlite3.Connection, today: dt.date) -> dt.date:
         except ValueError:
             completed_today_date = None
 
-    # 只要还有未完成任务，就以最早 pending 为锚点，避免今天出现空白列表。
+    if completed_future_today > 0:
+        return today
+
+    if pending_study_row:
+        try:
+            return dt.date.fromisoformat(pending_study_row["planned_date"])
+        except ValueError:
+            pass
+
     if pending_date is not None:
         return pending_date
 
@@ -932,68 +1037,9 @@ def index():
         auto_focus = True
 
     display_date_str = display_date.isoformat()
-    task_date_str = task_date.isoformat()
     prev_date = (display_date - dt.timedelta(days=1)).isoformat()
     next_date = (display_date + dt.timedelta(days=1)).isoformat()
     is_today = display_date == today
-
-    study_tasks_on_task_date = conn.execute(
-        f"""
-        SELECT id, day_num, stage, planned_date, title, status, completed_at
-        FROM tasks
-        WHERE day_num > 0
-          AND day_num < ?
-          AND date(planned_date) = date(?)
-        ORDER BY {SQL_BASE_DAY} ASC, {SQL_TASK_ORDER} ASC
-        """,
-        (LEETCODE_DAY_OFFSET, task_date_str),
-    ).fetchall()
-    study_pending_tasks = [t for t in study_tasks_on_task_date if t["status"] == "pending"]
-    non_study_tasks_on_display_date = conn.execute(
-        f"""
-        SELECT id, day_num, stage, planned_date, title, status, completed_at
-        FROM tasks
-        WHERE (day_num < 0 OR day_num >= ?)
-          AND date(planned_date) = date(?)
-        ORDER BY {SQL_BASE_DAY} ASC, {SQL_TASK_ORDER} ASC
-        """,
-        (LEETCODE_DAY_OFFSET, display_date_str),
-    ).fetchall()
-    non_study_pending_tasks = [
-        t for t in non_study_tasks_on_display_date if t["status"] == "pending"
-    ]
-    completed_on_display_date = conn.execute(
-        f"""
-        SELECT id, day_num, stage, planned_date, title, status, completed_at
-        FROM tasks
-        WHERE status = 'completed'
-          AND completed_at IS NOT NULL
-          AND date(completed_at) = date(?)
-        ORDER BY datetime(completed_at) ASC,
-                 {SQL_BASE_DAY} ASC, {SQL_TASK_ORDER} ASC
-        """,
-        (display_date_str,),
-    ).fetchall()
-
-    # 当天任务列表规则：
-    # 1) 当天应做但未完成（按 task_date 映射）；
-    # 2) 当天实际完成的任务（按 completed_at 的日期归属）。
-    # 已完成任务只出现在“完成那天”，避免在后续日期重复出现。
-    daily_task_map: dict[int, sqlite3.Row] = {}
-    for t in study_pending_tasks:
-        daily_task_map[t["id"]] = t
-    for t in non_study_pending_tasks:
-        daily_task_map[t["id"]] = t
-    for t in completed_on_display_date:
-        daily_task_map[t["id"]] = t
-    daily_tasks = sorted(
-        daily_task_map.values(),
-        key=lambda t: (
-            day_base_num(t["day_num"]),
-            task_sort_order(t["day_num"]),
-            t["completed_at"] or "",
-        ),
-    )
     all_tasks = conn.execute(
         f"""
         SELECT id, day_num, stage, planned_date, title, status, completed_at
@@ -1001,6 +1047,36 @@ def index():
         ORDER BY date(planned_date) ASC, {SQL_BASE_DAY} ASC, {SQL_TASK_ORDER} ASC
         """
     ).fetchall()
+    fixed_tasks_on_display_date = [
+        display_task(t, status=t["status"], completed_at=t["completed_at"])
+        for t in all_tasks
+        if task_kind(t["day_num"]) in {"fitness", "leetcode"}
+        and t["planned_date"] == display_date_str
+    ]
+    study_pending_tasks, study_completed_tasks = build_flexible_day_tasks(
+        all_tasks, "study", display_date
+    )
+    network_pending_tasks, network_completed_tasks = build_flexible_day_tasks(
+        all_tasks, "network", display_date
+    )
+    daily_task_map: dict[int, dict[str, object]] = {}
+    for task_group in (
+        fixed_tasks_on_display_date,
+        study_pending_tasks,
+        network_pending_tasks,
+        study_completed_tasks,
+        network_completed_tasks,
+    ):
+        for t in task_group:
+            daily_task_map[int(t["id"])] = t
+    daily_tasks = sorted(
+        daily_task_map.values(),
+        key=lambda t: (
+            day_base_num(int(t["day_num"])),
+            task_sort_order(int(t["day_num"])),
+            str(t["completed_at"] or ""),
+        ),
+    )
 
     leave_logs = conn.execute(
         """
@@ -1038,15 +1114,17 @@ def index():
     overdue_tasks = [
         t for t in all_tasks if t["status"] == "pending" and t["planned_date"] < display_date_str
     ]
-    daily_total = len(study_tasks_on_task_date) + len(non_study_tasks_on_display_date)
-    daily_completed = len(completed_on_display_date)
-    daily_pending = len(study_pending_tasks) + len(non_study_pending_tasks)
+    daily_total = len(daily_tasks)
+    daily_completed = sum(1 for t in daily_tasks if t["status"] == "completed")
+    daily_pending = daily_total - daily_completed
     daily_progress = (
         round((daily_completed / daily_total) * 100, 1) if daily_total else 0
     )
     daily_progress_bar = min(daily_progress, 100) if daily_total else 0
     extra_completed_count = sum(
-        1 for t in completed_on_display_date if t["planned_date"] > display_date_str
+        1
+        for t in [*study_completed_tasks, *network_completed_tasks]
+        if str(t["planned_date"]) > display_date_str
     )
     daily_leetcode = sum(
         leetcode_target(t["day_num"])
@@ -1071,6 +1149,11 @@ def index():
         overview_url = url_for("overview")
         clear_sim_url = url_for("index")
 
+    queue_shifted = any(
+        str(t["planned_date"]) != display_date_str
+        for t in [*study_pending_tasks, *network_pending_tasks]
+    )
+
     return render_template(
         "index.html",
         tasks=daily_tasks,
@@ -1078,7 +1161,6 @@ def index():
         edit_note_id=edit_note_id,
         leave_logs=leave_logs,
         display_date=display_date_str,
-        task_date=task_date_str,
         real_today=china_today().isoformat(),
         effective_today=effective_today.isoformat(),
         preview_mode=preview_mode,
@@ -1091,6 +1173,7 @@ def index():
         next_date=next_date,
         is_today=is_today,
         auto_focus=auto_focus,
+        queue_shifted=queue_shifted,
         total=total,
         completed=completed,
         pending=pending,

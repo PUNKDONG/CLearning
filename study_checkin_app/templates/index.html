@@ -20,7 +20,7 @@
         <div class="date-label">
           <strong>{{ display_date }}</strong>
           {% if is_today %}<span class="tag">今天</span>{% endif %}
-          {% if task_date != display_date %}<span class="tag">任务来自 {{ task_date }}</span>{% endif %}
+          {% if queue_shifted %}<span class="tag">Day/计网已按未完成队列重排</span>{% endif %}
         </div>
         <a class="nav-btn" href="{{ next_url }}">后一天 →</a>
       </div>
@@ -54,7 +54,7 @@
 
     {% if auto_focus and not is_today and not preview_mode %}
       <section class="panel">
-        <p>今日任务已做完，当前日期为 {{ display_date }}，任务来自 {{ task_date }}。</p>
+        <p>当前日期为 {{ display_date }}，日视图会按未完成队列自动重排 Day/计网任务。</p>
       </section>
     {% endif %}
 
@@ -126,6 +126,7 @@
 
     <section class="panel">
       <h2>当天任务列表</h2>
+      <p class="hint">健身和 LeetCode 固定在当天；Day/计网按未完成队列自动前移，提前完成的项目只出现在实际完成那天。</p>
       {% if tasks %}
         <div class="table-wrap">
           <table>
